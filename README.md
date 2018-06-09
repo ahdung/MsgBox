@@ -15,4 +15,4 @@
 - 项目更新至VS2017
 - 配合新特性更新Tester，如图：
 
-![](Tester_Screenshot.PNG)
+![](Screenshot_Tester.PNG)
