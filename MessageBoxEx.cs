@@ -1,140 +1,100 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.ComponentModel;
 using System.Drawing;
 using System.IO;
 using System.Runtime.InteropServices;
 using System.Threading;
 using System.Windows.Forms;
+// ReSharper disable InheritdocConsiderUsage
+// ReSharper disable VirtualMemberCallInConstructor
 
 namespace AhDung.WinForm
 {
     /// <summary>
     /// 可以携带详细信息的消息框
+    /// <para>- buttonsText参数可自定义按钮文本，元素顺序对应按钮从左到右的顺序，缺少对应元素或对应元素为NullOrEmpty的按钮将沿用默认文本，多出的元素则忽略</para>
     /// </summary>
     public static class MessageBoxEx
     {
         //异常消息文本
-        private const string InvalidButtonExString = "按钮参数不是有效的枚举项！";
-        private const string InvalidIconExString = "图标参数不是有效的枚举项！";
-        private const string InvalidDfButtonExString = "默认按钮参数不是有效的枚举项！";
+        const string InvalidButtonExString = "按钮参数不是有效的枚举项！";
+        const string InvalidIconExString = "图标参数不是有效的枚举项！";
+        const string InvalidDfButtonExString = "默认按钮参数不是有效的枚举项！";
+
+        //提示情景标题
+        const string InfoCaption = "提示...";
+        const string WarningCaption = "警告...";
+        const string ErrorCaption = "错误...";
 
         /// <summary>
         /// 是否启用动画效果
         /// </summary>
-        public static bool EnableAnimate { get; set; }
+        public static bool EnableAnimate { get; set; } = true;
 
         /// <summary>
         /// 是否启用声音反馈
         /// </summary>
-        public static bool EnableSound { get; set; }
+        public static bool EnableSound { get; set; } = true;
 
-        //静态构造
-        static MessageBoxEx()
-        {
-            //默认启用动画+声音
-            EnableAnimate = true;
-            EnableSound = true;
-        }
 
         #region 公开方法
 
         /// <summary>
-        /// 显示消息框
+        /// 显示信息框
         /// </summary>
-        /// <param name="message">消息文本</param>
-        /// <param name="caption">消息框标题</param>
-        /// <param name="attachMessage">附加消息</param>
-        public static DialogResult Show(string message, string caption = null, string attachMessage = null)
-        {
-            return ShowCore(message, caption, attachMessage, MessageBoxButtons.OK, MessageBoxIcon.None, MessageBoxDefaultButton.Button1);
-        }
+        public static void ShowInfo(string message, string attach = null, string caption = InfoCaption, bool expand = false, string buttonText = null) =>
+            ShowCore(message, caption, attach, icon: MessageBoxIcon.Information, expand: expand, buttonsText: new[] { buttonText });
 
-        /*下面这仨弄成重载而不是可选方法是为了避免不必要的参数检查*/
+        /// <summary>
+        /// 显示警告框
+        /// </summary>
+        public static void ShowWarning(string message, string attach = null, string caption = WarningCaption, bool expand = false, string buttonText = null) =>
+            ShowCore(message, caption, attach, icon: MessageBoxIcon.Warning, expand: expand, buttonsText: new[] { buttonText });
+
+        /// <summary>
+        /// 显示警告框
+        /// </summary>
+        public static void ShowWarning(string message, Exception exception, string caption = WarningCaption, bool expand = false, string buttonText = null) =>
+            ShowCore(message, caption, exception?.ToString(), icon: MessageBoxIcon.Warning, expand: expand, buttonsText: new[] { buttonText });
+
+        /// <summary>
+        /// 显示错误框
+        /// </summary>
+        public static void ShowError(string message, string attach = null, string caption = ErrorCaption, bool expand = false, string buttonText = null) =>
+            ShowCore(message, caption, attach, icon: MessageBoxIcon.Error, expand: expand, buttonsText: new[] { buttonText });
+
+        /// <summary>
+        /// 显示错误框
+        /// </summary>
+        public static void ShowError(string message, Exception exception, string caption = ErrorCaption, bool expand = false, string buttonText = null) =>
+            ShowCore(message, caption, exception?.ToString(), icon: MessageBoxIcon.Error, expand: expand, buttonsText: new[] { buttonText });
+
+        /// <summary>
+        /// 显示询问框
+        /// </summary>
+        public static DialogResult ShowQuestion(string message, string attach = null, string caption = InfoCaption, MessageBoxButtons buttons = MessageBoxButtons.OKCancel, MessageBoxDefaultButton defaultButton = MessageBoxDefaultButton.Button1, bool expand = false, string[] buttonsText = null) =>
+            ShowCore(message, caption, attach, buttons, MessageBoxIcon.Question, defaultButton, expand, buttonsText);
+
 
         /// <summary>
         /// 显示消息框
         /// </summary>
         /// <param name="message">消息文本</param>
         /// <param name="caption">消息框标题</param>
-        /// <param name="attachMessage">附加消息</param>
-        /// <param name="buttons">按钮组合</param>
-        public static DialogResult Show(string message, string caption, string attachMessage, MessageBoxButtons buttons)
-        {
-            if (!Enum.IsDefined(typeof(MessageBoxButtons), buttons)) { throw new InvalidEnumArgumentException(InvalidButtonExString); }
-
-            return ShowCore(message, caption, attachMessage, buttons, MessageBoxIcon.None, MessageBoxDefaultButton.Button1);
-        }
-
-        /// <summary>
-        /// 显示消息框
-        /// </summary>
-        /// <param name="message">消息文本</param>
-        /// <param name="caption">消息框标题</param>
-        /// <param name="attachMessage">附加消息</param>
-        /// <param name="buttons">按钮组合</param>
-        /// <param name="icon">图标</param>
-        public static DialogResult Show(string message, string caption, string attachMessage, MessageBoxButtons buttons, MessageBoxIcon icon)
-        {
-            if (!Enum.IsDefined(typeof(MessageBoxButtons), buttons)) { throw new InvalidEnumArgumentException(InvalidButtonExString); }
-            if (!Enum.IsDefined(typeof(MessageBoxIcon), icon)) { throw new InvalidEnumArgumentException(InvalidIconExString); }
-
-            return ShowCore(message, caption, attachMessage, buttons, icon, MessageBoxDefaultButton.Button1);
-        }
-
-        /// <summary>
-        /// 显示消息框
-        /// </summary>
-        /// <param name="message">消息文本</param>
-        /// <param name="caption">消息框标题</param>
-        /// <param name="attachMessage">附加消息</param>
+        /// <param name="attach">附加消息</param>
         /// <param name="buttons">按钮组合</param>
         /// <param name="icon">图标</param>
         /// <param name="defaultButton">默认按钮</param>
-        public static DialogResult Show(string message, string caption, string attachMessage, MessageBoxButtons buttons, MessageBoxIcon icon, MessageBoxDefaultButton defaultButton)
+        /// <param name="expand">展开详细信息</param>
+        /// <param name="buttonsText">按钮文本</param>
+        public static DialogResult Show(string message, string caption = null, string attach = null, MessageBoxButtons buttons = MessageBoxButtons.OK, MessageBoxIcon icon = MessageBoxIcon.None, MessageBoxDefaultButton defaultButton = MessageBoxDefaultButton.Button1, bool expand = false, string[] buttonsText = null)
         {
             if (!Enum.IsDefined(typeof(MessageBoxButtons), buttons)) { throw new InvalidEnumArgumentException(InvalidButtonExString); }
             if (!Enum.IsDefined(typeof(MessageBoxIcon), icon)) { throw new InvalidEnumArgumentException(InvalidIconExString); }
             if (!Enum.IsDefined(typeof(MessageBoxDefaultButton), defaultButton)) { throw new InvalidEnumArgumentException(InvalidDfButtonExString); }
 
-            return ShowCore(message, caption, attachMessage, buttons, icon, defaultButton);
-        }
-
-        /********传入异常的重载********/
-
-        /// <summary>
-        /// 显示消息框
-        /// </summary>
-        /// <param name="message">消息文本</param>
-        /// <param name="caption">消息框标题</param>
-        /// <param name="exception">异常实例</param>
-        public static DialogResult Show(string message, string caption, Exception exception)
-        {
-            return Show(message, caption, exception == null ? string.Empty : exception.ToString());
-        }
-
-        /// <summary>
-        /// 显示消息框
-        /// </summary>
-        /// <param name="message">消息文本</param>
-        /// <param name="caption">消息框标题</param>
-        /// <param name="exception">异常实例</param>
-        /// <param name="buttons">按钮组合</param>
-        public static DialogResult Show(string message, string caption, Exception exception, MessageBoxButtons buttons)
-        {
-            return Show(message, caption, exception == null ? string.Empty : exception.ToString(), buttons);
-        }
-
-        /// <summary>
-        /// 显示消息框
-        /// </summary>
-        /// <param name="message">消息文本</param>
-        /// <param name="caption">消息框标题</param>
-        /// <param name="exception">异常实例</param>
-        /// <param name="buttons">按钮组合</param>
-        /// <param name="icon">图标</param>
-        public static DialogResult Show(string message, string caption, Exception exception, MessageBoxButtons buttons, MessageBoxIcon icon)
-        {
-            return Show(message, caption, exception == null ? string.Empty : exception.ToString(), buttons, icon);
+            return ShowCore(message, caption, attach, buttons, icon, defaultButton, expand, buttonsText);
         }
 
         /// <summary>
@@ -146,17 +106,17 @@ namespace AhDung.WinForm
         /// <param name="buttons">按钮组合</param>
         /// <param name="icon">图标</param>
         /// <param name="defaultButton">默认按钮</param>
-        public static DialogResult Show(string message, string caption, Exception exception, MessageBoxButtons buttons, MessageBoxIcon icon, MessageBoxDefaultButton defaultButton)
-        {
-            return Show(message, caption, exception == null ? string.Empty : exception.ToString(), buttons, icon, defaultButton);
-        }
+        /// <param name="expand">展开详细信息</param>
+        /// <param name="buttonsText">按钮文本</param>
+        public static DialogResult Show(string message, string caption, Exception exception, MessageBoxButtons buttons = MessageBoxButtons.OK, MessageBoxIcon icon = MessageBoxIcon.None, MessageBoxDefaultButton defaultButton = MessageBoxDefaultButton.Button1, bool expand = false, string[] buttonsText = null) =>
+            Show(message, caption, exception?.ToString(), buttons, icon, defaultButton, expand, buttonsText);
 
         #endregion
 
         //内部方法，不检查参数有效性
-        private static DialogResult ShowCore(string message, string caption, string attachMessage, MessageBoxButtons buttons, MessageBoxIcon icon, MessageBoxDefaultButton defaultButton)
+        private static DialogResult ShowCore(string message, string caption = null, string attach = null, MessageBoxButtons buttons = MessageBoxButtons.OK, MessageBoxIcon icon = MessageBoxIcon.None, MessageBoxDefaultButton defaultButton = MessageBoxDefaultButton.Button1, bool expand = false, string[] buttonsText = null)
         {
-            using (MessageForm f = new MessageForm(message, caption, buttons, icon, defaultButton, attachMessage, EnableAnimate, EnableSound))
+            using (var f = new MessageForm(message, caption, buttons, icon, defaultButton, attach, EnableAnimate, EnableSound, expand, buttonsText))
             {
                 return f.ShowDialog();
             }
@@ -173,289 +133,143 @@ namespace AhDung.WinForm
         /// <remarks>参数有效性由MessageBoxEx负责</remarks>
         private class MessageForm : Form
         {
-            /* todo 存在问题：
+            /* todo 已知细小问题：
              * 当消息区文本非常非常多时，且反复进行改变消息框窗口大小、位置、展开收起的操作，那么在某次展开时
                详细信息文本框可能会在原位置（即消息区内某rect）瞬闪一下，
                原因是文本框控件在显示时总会在原位置WM_NCPAINT + WM_ERASEBKGND一下，暂无解决办法。
                实际应用中碰到的几率很小，就算碰到，影响也可以忽略。
              */
 
-            #region 控件初始化
+            const int MaxClientWidth = 700; //最大默认窗体客户区宽度
+            static readonly Font GlobalFont = SystemFonts.MessageBoxFont;
 
-            /// <summary>
-            /// 必需的设计器变量。
-            /// </summary>
-            private System.ComponentModel.IContainer components = null;
+            readonly string _messageSound;
+            readonly bool _expand;
+            bool _useAnimate;
+            readonly bool _useSound;
+            readonly MessageBoxButtons _buttons;
+            readonly bool _hasAttach;
+            readonly ToggleButton _ckbToggle;
+            readonly MessageViewer _msgViewer;
+            readonly PanelBasic _panelButtons;
+            readonly PanelBasic _panelAttach;
 
-            /// <summary>
-            /// 清理所有正在使用的资源。
-            /// </summary>
-            /// <param name="disposing">如果应释放托管资源，为 true；否则为 false。</param>
-            protected override void Dispose(bool disposing)
-            {
-                if (disposing && (components != null))
-                {
-                    components.Dispose();
-                }
-                base.Dispose(disposing);
-            }
-
-            #region Windows 窗体设计器生成的代码
-
-            /// <summary>
-            /// 设计器支持所需的方法 - 不要
-            /// 使用代码编辑器修改此方法的内容。
-            /// </summary>
-            private void InitializeComponent()
-            {
-                this.button3 = new System.Windows.Forms.Button();
-                this.txbAttach = new TextBoxUnSelectAllable();
-                this.button2 = new System.Windows.Forms.Button();
-                this.button1 = new System.Windows.Forms.Button();
-                this.plButtonsZone = new AhDung.WinForm.MessageBoxEx.MessageForm.PanelBasic();
-                this.ckbToggle = new AhDung.WinForm.MessageBoxEx.MessageForm.ToggleButton(this.UseAnimate);
-                this.plAttachZone = new AhDung.WinForm.MessageBoxEx.MessageForm.PanelBasic();
-                this.lbMsg = new AhDung.WinForm.MessageBoxEx.MessageForm.MessageViewer();
-                this.plButtonsZone.SuspendLayout();
-                this.plAttachZone.SuspendLayout();
-                this.SuspendLayout();
-                // 
-                // button3
-                // 
-                this.button3.Anchor = System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Right;
-                this.button3.Location = new System.Drawing.Point(320, 8);
-                this.button3.Margin = new System.Windows.Forms.Padding(3, 2, 3, 2);
-                this.button3.Name = "button3";
-                this.button3.Size = new System.Drawing.Size(85, 27);
-                this.button3.TabIndex = 2;
-                // 
-                // txbAttach
-                // 
-                this.txbAttach.Anchor = ((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Bottom)
-                                         | System.Windows.Forms.AnchorStyles.Left)
-                                         | System.Windows.Forms.AnchorStyles.Right;
-                this.txbAttach.Location = new System.Drawing.Point(10, 7);
-                this.txbAttach.Margin = new System.Windows.Forms.Padding(3, 1, 3, 1);
-                this.txbAttach.Name = "txbAttach";
-                this.txbAttach.ReadOnly = true;
-                this.txbAttach.Multiline = true;
-                this.txbAttach.ScrollBars = System.Windows.Forms.ScrollBars.Vertical;
-                this.txbAttach.Size = new System.Drawing.Size(395, 105);
-                this.txbAttach.TabIndex = 0;
-                // 
-                // button2
-                // 
-                this.button2.Anchor = System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Right;
-                this.button2.Location = new System.Drawing.Point(229, 8);
-                this.button2.Margin = new System.Windows.Forms.Padding(3, 2, 3, 2);
-                this.button2.Name = "button2";
-                this.button2.Size = new System.Drawing.Size(85, 27);
-                this.button2.TabIndex = 1;
-                // 
-                // button1
-                // 
-                this.button1.Anchor = System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Right;
-                this.button1.Location = new System.Drawing.Point(138, 8);
-                this.button1.Margin = new System.Windows.Forms.Padding(3, 2, 3, 2);
-                this.button1.Name = "button1";
-                this.button1.Size = new System.Drawing.Size(85, 27);
-                this.button1.TabIndex = 0;
-                // 
-                // plButtonsZone
-                // 
-                this.plButtonsZone.Controls.Add(this.ckbToggle);
-                this.plButtonsZone.Controls.Add(this.button1);
-                this.plButtonsZone.Controls.Add(this.button2);
-                this.plButtonsZone.Controls.Add(this.button3);
-                this.plButtonsZone.Dock = System.Windows.Forms.DockStyle.Bottom;
-                this.plButtonsZone.Location = new System.Drawing.Point(0, 96);
-                this.plButtonsZone.Margin = new System.Windows.Forms.Padding(3, 1, 3, 1);
-                this.plButtonsZone.Name = "plButtonsZone";
-                this.plButtonsZone.Size = new System.Drawing.Size(415, 36);
-                this.plButtonsZone.TabIndex = 1;
-                // 
-                // ckbToggle
-                // 
-                this.ckbToggle.Location = new System.Drawing.Point(10, 8);
-                this.ckbToggle.Name = "ckbToggle";
-                this.ckbToggle.Size = new System.Drawing.Size(93, 27);
-                this.ckbToggle.TabIndex = 3;
-                this.ckbToggle.Text = "详细信息(&D)";
-                this.ckbToggle.CheckedChanged += this.ckbToggle_CheckedChanged;
-                // 
-                // plAttachZone
-                // 
-                this.plAttachZone.Controls.Add(this.txbAttach);
-                this.plAttachZone.Dock = System.Windows.Forms.DockStyle.Fill;
-                this.plAttachZone.Location = new System.Drawing.Point(0, 130);
-                this.plAttachZone.Margin = new System.Windows.Forms.Padding(3, 2, 3, 2);
-                this.plAttachZone.Name = "plAttachZone";
-                this.plAttachZone.Size = new System.Drawing.Size(415, 114);
-                this.plAttachZone.TabIndex = 2;
-                this.plAttachZone.Visible = false;
-                // 
-                // lbMsg
-                // 
-                this.lbMsg.Dock = System.Windows.Forms.DockStyle.Fill;
-                this.lbMsg.Icon = null;
-                this.lbMsg.Location = new System.Drawing.Point(0, 0);
-                this.lbMsg.Name = "lbMsg";
-                this.lbMsg.Padding = new System.Windows.Forms.Padding(21, 18, 21, 18);
-                //this.lbMsg.Size = new System.Drawing.Size(415, 96);
-                this.lbMsg.TabIndex = 0;
-                // 
-                // FmMsg
-                // 
-                this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.None;
-                //this.ClientSize = new System.Drawing.Size(415, 261);
-                this.Controls.Add(this.lbMsg);
-                this.Controls.Add(this.plButtonsZone);
-                this.Controls.Add(this.plAttachZone);
-                this.DoubleBuffered = true;
-                this.MaximizeBox = false;
-                this.Name = "MessageForm";
-                this.Padding = new System.Windows.Forms.Padding(0, 0, 0, 17);
-                this.ShowIcon = false;
-                this.ShowInTaskbar = false;
-                this.SizeGripStyle = System.Windows.Forms.SizeGripStyle.Show;
-                this.plButtonsZone.ResumeLayout(false);
-                this.plAttachZone.ResumeLayout(false);
-                this.plAttachZone.PerformLayout();
-                this.ResumeLayout(false);
-            }
-
-            #endregion
-
-            private ToggleButton ckbToggle;
-            private TextBoxUnSelectAllable txbAttach;
-            private MessageViewer lbMsg;
-            private System.Windows.Forms.Button button2;
-            private System.Windows.Forms.Button button1;
-            private PanelBasic plButtonsZone;
-            private PanelBasic plAttachZone;
-            private System.Windows.Forms.Button button3;
-
-            #endregion
-
-            /// <summary>
-            /// 最大默认窗体客户区宽度
-            /// </summary>
-            const int MaxClientWidth = 700;
-
-            string messageSound;//存储供PlaySound API使用的系统消息音别名，在ProcessIcon中赋值，OnShown中取用
-
-            int expandHeight;
+            int _expandHeight;
             /// <summary>
             /// 详细信息区展开高度
             /// </summary>
             private int ExpandHeight
             {
-                get { return expandHeight < 150 ? 150 : expandHeight; }
-                set { expandHeight = value; }
-            }
-
-            #region 属性
-
-            /// <summary>
-            /// 是否启用动画效果
-            /// </summary>
-            /// <remarks>此处还弄该属性是为了保证窗体类的独立性</remarks>
-            private bool UseAnimate { get; set; }
-
-            /// <summary>
-            /// 是否启用声音反馈
-            /// </summary>
-            /// <remarks>此处还弄该属性是为了保证窗体类的独立性</remarks>
-            private bool UseSound { get; set; }
-
-            /// <summary>
-            /// 消息按钮
-            /// </summary>
-            private MessageBoxButtons MessageButtons { get; set; }
-
-            /// <summary>
-            /// 消息图标
-            /// </summary>
-            private MessageBoxIcon MessageIcon { get; set; }
-
-            /// <summary>
-            /// 默认按钮
-            /// </summary>
-            private MessageBoxDefaultButton DefaultButton { get; set; }
-
-            #endregion
-
-            /// <summary>
-            /// 创建消息窗体
-            /// </summary>
-            private MessageForm(bool enableAnimate)
-            {
-                this.UseAnimate = enableAnimate;//须尽早设置，要供展开按钮初始化用
-                InitializeComponent();
-                this.StartPosition = Form.ActiveForm == null ? FormStartPosition.CenterScreen : FormStartPosition.CenterParent;
-                this.Font = SystemFonts.MessageBoxFont;
-
-                //注册事件
-                this.button1.Click += button_Click;
-                this.button2.Click += button_Click;
-                this.button3.Click += button_Click;
-                this.plAttachZone.Resize += plAttachZone_Resize;
+                get => _expandHeight < 150 ? 150 : _expandHeight;
+                set => _expandHeight = value;
             }
 
             /// <summary>
             /// 创建消息窗体
             /// </summary>
-            public MessageForm(string message, string caption, MessageBoxButtons buttons, MessageBoxIcon icon, MessageBoxDefaultButton defaultButton, string attachMessage, bool enableAnimate, bool enableSound)
-                : this(enableAnimate)
+            public MessageForm(string message, string caption, MessageBoxButtons buttons, MessageBoxIcon icon, MessageBoxDefaultButton defaultButton, string attach, bool enableAnimate, bool enableSound, bool expand, string[] buttonsText)
             {
-                this.lbMsg.Text = message;
-                this.Text = caption;
-                this.txbAttach.Text = attachMessage;
-                this.MessageButtons = buttons;
-                this.MessageIcon = icon;
-                this.DefaultButton = defaultButton;
-                this.UseSound = enableSound;
+                _useAnimate = enableAnimate;
+                _useSound = enableSound;
+                _buttons = buttons;
+                _expand = expand;
+                _hasAttach = !string.IsNullOrEmpty(attach);
+
+                _msgViewer = CreateMessageViewer(icon, message, out _messageSound);
+                _panelButtons = CreateButtonsPanel(_hasAttach, buttons, defaultButton, buttonsText, out var createdButtons);
+                _ckbToggle = _hasAttach ? (ToggleButton)createdButtons[0] : null;
+                Controls.Add(_msgViewer);
+                Controls.Add(_panelButtons);
+
+                if (_hasAttach)
+                {
+                    _panelAttach = CreateAttachPanel(attach);
+                    _panelAttach.Resize += plAttachZone_Resize;
+                    Controls.Add(_panelAttach);
+                }
+
+                SuspendLayout();
+
+                StartPosition = ActiveForm == null ? FormStartPosition.CenterScreen : FormStartPosition.CenterParent;
+                Font = GlobalFont;
+                DoubleBuffered = true;
+                MaximizeBox = false;
+                Name = "MessageForm";
+                Padding = new Padding(0, 0, 0, 17);
+                ShowIcon = false;
+                ShowInTaskbar = false;
+                SizeGripStyle = SizeGripStyle.Show;
+                Text = caption;
+
+                //有取消按钮时允许ESC关闭
+                if (((int)buttons & 1) == 1)
+                {
+                    CancelButton = (Button)createdButtons[createdButtons.Length - 1];
+                }
+
+                MinimumSize = SizeFromClientSize(new Size(_panelButtons.MinimumSize.Width + Padding.Horizontal, _msgViewer.MinimumSize.Height + _panelButtons.MinimumSize.Height + Padding.Vertical));
+                ClientSize = GetPreferredSize(new Size(MaxClientWidth, Screen.PrimaryScreen.WorkingArea.Height - (Height - ClientSize.Height)));
+
+                ResumeLayout(false);
+                PerformLayout();
             }
 
-            #region 重写基类方法
+            PanelBasic CreateAttachPanel(string attach)
+            {
+                var txb = new TextBox
+                {
+                    Anchor = (AnchorStyles)15, //上下左右
+                    Location = new Point(10, 7),
+                    ReadOnly = true,
+                    Multiline = true,
+                    ScrollBars = ScrollBars.Vertical,
+                    Text = attach
+                };
+                var panel = new PanelBasic();
+                panel.SuspendLayout();
+
+                panel.Dock = DockStyle.Fill;
+                panel.Visible = false;
+                panel.Size = new Size(txb.Width + 20, txb.Height + 9);
+                panel.Controls.Add(txb);
+
+                panel.ResumeLayout(false);
+                return panel;
+            }
+
+            #region 重写基类
 
             protected override void OnLoad(EventArgs e)
             {
-                //须在计算各种尺寸前搞掂
-                ProcessIcon();
-                ProcessButtons();
-
-                this.MinimumSize = SizeFromClientSize(new Size(GetPanelButtonMinWidth(), GetClientMinHeight()));
-
-                //参数意义定为客户区最大大小，所以需刨掉非客户区高度后传入
-                this.ClientSize = this.GetPreferredSize(new Size(MaxClientWidth, Screen.PrimaryScreen.WorkingArea.Height - (this.Height - this.ClientSize.Height)));
-
                 base.OnLoad(e);
+
+                if (_hasAttach && _expand)
+                {
+                    var animate = _useAnimate;
+                    _useAnimate = false;
+                    _ckbToggle.Checked = true;
+                    _useAnimate = animate;
+                }
             }
 
             protected override void OnShown(EventArgs e)
             {
+                base.OnShown(e);
+
                 //设置默认按钮焦点。须在OnShown中设置按钮焦点才有用
-                Button dfBtn;
-                if ((dfBtn = this.AcceptButton as Button) != null)
-                {
-                    dfBtn.Focus();
-                }
+                (AcceptButton as Button)?.Focus();
 
                 //播放消息提示音
-                if (this.UseSound) { PlaySystemSound(this.messageSound); }
-
-                base.OnShown(e);
+                if (_useSound) { PlaySystemSound(_messageSound); }
             }
 
-            //重写窗体参数
             protected override CreateParams CreateParams
             {
                 get
                 {
-                    CreateParams prms = base.CreateParams;
+                    var prms = base.CreateParams;
 
-                    if ((Convert.ToInt32(this.MessageButtons) & 1) == 0) //没有Cancel按钮时屏蔽关闭按钮，刚好在偶数项
+                    if (((int)_buttons & 1) == 0) //没有Cancel按钮时屏蔽关闭按钮，刚好在偶数项
                     {
                         prms.ClassStyle |= 0x200;
                     }
@@ -470,10 +284,19 @@ namespace AhDung.WinForm
             /// <param name="proposedSize">该参数此处定义为客户区可设置的最大尺寸</param>
             public override Size GetPreferredSize(Size proposedSize)
             {
-                int reservedHeight = plButtonsZone.Height + Padding.Bottom;
-                Size size = lbMsg.GetPreferredSize(new Size(proposedSize.Width, proposedSize.Height - reservedHeight));
+                var reservedHeight = _panelButtons.Height + Padding.Bottom;
+                var size = _msgViewer.GetPreferredSize(new Size(proposedSize.Width, proposedSize.Height - reservedHeight));
                 size.Height += reservedHeight;
                 return size;
+            }
+
+            protected override void Dispose(bool disposing)
+            {
+                if (disposing)
+                {
+                    _ckbToggle?.Dispose();
+                }
+                base.Dispose(disposing);
             }
 
             #endregion
@@ -483,46 +306,41 @@ namespace AhDung.WinForm
             //展开收起
             private void ckbToggle_CheckedChanged(object sender, EventArgs e)
             {
-                this.SuspendLayout();
+                SuspendLayout();
 
-                if (ckbToggle.Checked)
+                if (_ckbToggle.Checked)
                 {
-                    plButtonsZone.SendToBack();
-                    lbMsg.SendToBack();
+                    _panelButtons.SendToBack();
+                    _msgViewer.SendToBack();
 
-                    lbMsg.Dock = DockStyle.Top;
-                    plButtonsZone.Dock = DockStyle.Top;
+                    _msgViewer.Dock = DockStyle.Top;
+                    _panelButtons.Dock = DockStyle.Top;
 
                     ChangeFormHeight(ExpandHeight);
-                    plAttachZone.Visible = true;
+                    _panelAttach.Visible = true;
                 }
                 else
                 {
-                    ExpandHeight = plAttachZone.Height;//为再次展开记忆高度
-                    plAttachZone.Visible = false;
-                    ChangeFormHeight(-plAttachZone.Height);//收起时直接取pl高度，不要取ExpandHeight
+                    ExpandHeight = _panelAttach.Height;//为再次展开记忆高度
+                    _panelAttach.Visible = false;
+                    ChangeFormHeight(-_panelAttach.Height);//收起时直接取pl高度，不要取ExpandHeight
 
-                    plButtonsZone.SendToBack();
+                    _panelButtons.SendToBack();
 
-                    plButtonsZone.Dock = DockStyle.Bottom;
-                    lbMsg.Dock = DockStyle.Fill;
+                    _panelButtons.Dock = DockStyle.Bottom;
+                    _msgViewer.Dock = DockStyle.Fill;
                 }
 
-                this.ResumeLayout();
-            }
-
-            //按钮事件
-            private void button_Click(object sender, EventArgs e)
-            {
-                this.DialogResult = (DialogResult)((sender as Button).Tag);
+                ResumeLayout();
             }
 
             //用户手工收完详细区则触发折叠
             private void plAttachZone_Resize(object sender, EventArgs e)
             {
-                if (ckbToggle.Checked && plAttachZone.Height == 0)
+                if (_ckbToggle.Checked && _panelAttach.Height == 0
+                    && WindowState != FormWindowState.Minimized) //最小化也会触发该事件，所以要排除
                 {
-                    ckbToggle.Checked = false;
+                    _ckbToggle.Checked = false;
                 }
             }
 
@@ -530,136 +348,130 @@ namespace AhDung.WinForm
 
             #region 辅助+私有方法
 
-            /// <summary>
-            /// 处理按钮相关
-            /// </summary>
-            private void ProcessButtons()
+            PanelBasic CreateButtonsPanel(bool hasAttach, MessageBoxButtons buttons, MessageBoxDefaultButton defaultButton, string[] buttonsText, out Control[] createdButtons)
             {
-                this.ckbToggle.Visible = txbAttach.Text.Trim().Length != 0; //无详细信息就不显示展开按钮
+                // 由于CreateButtonsPanel时仍未加入Form，所以字体尚未继承Form，
+                // 此时依赖字体的尺寸计算都不可靠，所以创建按钮时需指定字体
 
-                int btnCount = 3; //按钮数量
+                const int PADDING = 10; //按钮距边
+                const int SPACING = 3; //按钮间距
 
-                switch (MessageButtons) //老实用case，可读点。给确定和取消加了助记键
+                var lkl = new LinkedList<Control>();
+                var width = PADDING;
+                if (hasAttach)
+                {
+                    var btn = new ToggleButton(_useAnimate) { Font = GlobalFont, MinimumSize = new Size(93, 27), Text = "详细信息(&D)", Location = new Point(width, PADDING) };
+                    btn.Size = btn.MinimumSize;
+                    btn.CheckedChanged += ckbToggle_CheckedChanged;
+                    lkl.AddLast(btn);
+                    width += 93 + SPACING + 10; // 详细信息按钮 与 正常按钮之间多间隔一点
+                }
+                switch (buttons)
                 {
                     case MessageBoxButtons.AbortRetryIgnore:
-                        button1.Text = "中止(&A)"; button1.Tag = DialogResult.Abort;
-                        button2.Text = "重试(&R)"; button2.Tag = DialogResult.Retry;
-                        button3.Text = "忽略(&I)"; button3.Tag = DialogResult.Ignore;
+                        width += Add(width, GetText(0) ?? "中止(&A)", DialogResult.Abort, defaultButton == MessageBoxDefaultButton.Button1) + SPACING;
+                        width += Add(width, GetText(1) ?? "重试(&R)", DialogResult.Retry, defaultButton == MessageBoxDefaultButton.Button2) + SPACING;
+                        width += Add(width, GetText(2) ?? "忽略(&I)", DialogResult.Ignore, defaultButton == MessageBoxDefaultButton.Button3) + PADDING;
                         break;
                     case MessageBoxButtons.OK:
-                        button1.Visible = false;
-                        button2.Visible = false;
-                        button3.Text = "确定(&O)"; button3.Tag = DialogResult.OK;
-                        btnCount = 1;
+                        width += Add(width, GetText(0) ?? "确定(&O)", DialogResult.OK, true) + PADDING;
                         break;
                     case MessageBoxButtons.OKCancel:
-                        button1.Visible = false;
-                        button2.Text = "确定(&O)"; button2.Tag = DialogResult.OK;
-                        button3.Text = "取消(&C)"; button3.Tag = DialogResult.Cancel;
-                        btnCount = 2;
+                        width += Add(width, GetText(0) ?? "确定(&O)", DialogResult.OK, defaultButton != MessageBoxDefaultButton.Button2) + SPACING;
+                        width += Add(width, GetText(1) ?? "取消(&C)", DialogResult.Cancel, defaultButton == MessageBoxDefaultButton.Button2) + PADDING;
                         break;
                     case MessageBoxButtons.RetryCancel:
-                        button1.Visible = false;
-                        button2.Text = "重试(&R)"; button2.Tag = DialogResult.Retry;
-                        button3.Text = "取消(&C)"; button3.Tag = DialogResult.Cancel;
-                        btnCount = 2;
+                        width += Add(width, GetText(0) ?? "重试(&R)", DialogResult.Retry, defaultButton != MessageBoxDefaultButton.Button2) + SPACING;
+                        width += Add(width, GetText(1) ?? "取消(&C)", DialogResult.Cancel, defaultButton == MessageBoxDefaultButton.Button2) + PADDING;
                         break;
                     case MessageBoxButtons.YesNo:
-                        button1.Visible = false;
-                        button2.Text = "是(&Y)"; button2.Tag = DialogResult.Yes;
-                        button3.Text = "否(&N)"; button3.Tag = DialogResult.No;
-                        btnCount = 2;
+                        width += Add(width, GetText(0) ?? "是(&Y)", DialogResult.Yes, defaultButton != MessageBoxDefaultButton.Button2) + SPACING;
+                        width += Add(width, GetText(1) ?? "否(&N)", DialogResult.No, defaultButton == MessageBoxDefaultButton.Button2) + PADDING;
                         break;
                     case MessageBoxButtons.YesNoCancel:
-                        button1.Text = "是(&Y)"; button1.Tag = DialogResult.Yes;
-                        button2.Text = "否(&N)"; button2.Tag = DialogResult.No;
-                        button3.Text = "取消(&C)"; button3.Tag = DialogResult.Cancel;
+                        width += Add(width, GetText(0) ?? "是(&Y)", DialogResult.Yes, defaultButton == MessageBoxDefaultButton.Button1) + SPACING;
+                        width += Add(width, GetText(1) ?? "否(&N)", DialogResult.No, defaultButton == MessageBoxDefaultButton.Button2) + SPACING;
+                        width += Add(width, GetText(2) ?? "取消(&C)", DialogResult.Cancel, defaultButton == MessageBoxDefaultButton.Button3) + PADDING;
                         break;
-                    default: break;
                 }
 
-                //仅有OK和有取消按钮时设CancelButton
-                if ((int)MessageButtons == 0 || ((int)MessageButtons & 1) == 1)
+                var btnArr = new Control[lkl.Count];
+                lkl.CopyTo(btnArr, 0);
+                createdButtons = btnArr;
+
+                var pl = new PanelBasic();
+                pl.SuspendLayout();
+
+                pl.Size = pl.MinimumSize = new Size(width, btnArr[0].Height + PADDING);
+                pl.Dock = DockStyle.Bottom;
+                pl.Controls.AddRange(btnArr);
+
+                pl.ResumeLayout(false);
+                return pl;
+
+                //返回按钮宽度
+                int Add(int left, string text, DialogResult result, bool setDefault = false)
                 {
-                    this.CancelButton = button3;
+                    var btn = new Button { Font = GlobalFont, AutoSize = true, Text = text, MinimumSize = new Size(85, 27), Anchor = AnchorStyles.Right, DialogResult = result };
+                    btn.Size = btn.PreferredSize;
+                    btn.Location = new Point(left, PADDING);
+                    lkl.AddLast(btn);
+                    if (setDefault)
+                    {
+                        AcceptButton = btn;
+                    }
+                    return btn.Width;
                 }
 
-                //处理默认按钮
-                if (btnCount == 1)
-                {
-                    this.AcceptButton = button3;
-                }
-                else if (btnCount == 2)
-                {
-                    this.AcceptButton = DefaultButton == MessageBoxDefaultButton.Button2 ? button3 : button2;
-                }
-                else
-                {
-                    Button[] btnArray = { button1, button2, button3 };
-                    this.AcceptButton = btnArray[Convert.ToInt32(DefaultButton) / 0x100];
-                }
+                string GetText(int i) => (buttonsText?.Length ?? 0) > i && !string.IsNullOrEmpty(buttonsText[i]) ? buttonsText[i] : null;
             }
 
-            /// <summary>
-            /// 处理图标（含声音）
-            /// </summary>
-            private void ProcessIcon()
+            MessageViewer CreateMessageViewer(MessageBoxIcon icon, string text, out string sound)
             {
-                switch (MessageIcon)
+                Icon ico;
+                switch (icon)
                 {
                     //MessageBoxIcon.Information同样
                     case MessageBoxIcon.Asterisk:
-                        lbMsg.Icon = SystemIcons.Information;
-                        messageSound = "SystemAsterisk";
+                        ico = SystemIcons.Information;
+                        sound = "SystemAsterisk";
                         break;
 
                     //MessageBoxIcon.Hand、MessageBoxIcon.Stop同样
                     case MessageBoxIcon.Error:
-                        lbMsg.Icon = SystemIcons.Error;
-                        messageSound = "SystemHand";
+                        ico = SystemIcons.Error;
+                        sound = "SystemHand";
                         break;
 
                     //MessageBoxIcon.Warning同样
                     case MessageBoxIcon.Exclamation:
-                        lbMsg.Icon = SystemIcons.Warning;
-                        messageSound = "SystemExclamation";
+                        ico = SystemIcons.Warning;
+                        sound = "SystemExclamation";
                         break;
 
                     case MessageBoxIcon.Question:
-                        lbMsg.Icon = SystemIcons.Question;
-                        messageSound = "SystemAsterisk";//Question原本是没声音的，此实现让它蹭一下Information的
+                        ico = SystemIcons.Question;
+                        sound = "SystemAsterisk";//Question原本是没声音的，此实现让它蹭一下Information的
                         break;
 
                     default: //MessageBoxIcon.None
-                        lbMsg.Icon = null;
-                        messageSound = "SystemDefault";
+                        ico = null;
+                        sound = "SystemDefault";
                         break;
                 }
-            }
 
-            /// <summary>
-            /// 计算窗体客户区最小高度
-            /// </summary>
-            private int GetClientMinHeight()
-            {
-                return lbMsg.MinimumHeight + plButtonsZone.Height + Padding.Bottom;
-            }
+                var view = new MessageViewer();
+                view.SuspendLayout();
 
-            /// <summary>
-            /// 计算按钮区最小宽度
-            /// </summary>
-            private int GetPanelButtonMinWidth()
-            {
-                int r = 20 /*左右Padding*/, visibleCount = -1 /*因为两个以上才会有间距*/;
+                view.Font = GlobalFont;
+                view.Dock = DockStyle.Fill;
+                view.Icon = ico;
+                view.Text = text;
+                view.Padding = new Padding(21, 18, 21, 18);
+                view.MinimumSize = new Size((ico?.Width ?? 0) + view.Padding.Horizontal, Math.Max(ico?.Height ?? 0, FontHeight) + view.Padding.Vertical);
 
-                if (ckbToggle.Visible) { r += ckbToggle.Width; visibleCount++; }
-                if (button1.Visible) { r += button1.Width * 3; visibleCount += 3; }
-                else if (button2.Visible) { r += button2.Width * 2; visibleCount += 2; }
-                else { r += button3.Width; visibleCount++; }
-
-                if (visibleCount != -1) { r += visibleCount * 6; } //按钮间距
-
-                return r;
+                view.ResumeLayout(false);
+                return view;
             }
 
             /// <summary>
@@ -668,25 +480,25 @@ namespace AhDung.WinForm
             /// <param name="increment">增量（负数即为减小高度）</param>
             private void ChangeFormHeight(int increment)
             {
-                int finalHeight = this.Height + increment; //正确的目标高度
+                var finalHeight = Height + increment; //正确的目标高度
 
-                if (!this.UseAnimate) //不使用动画
+                if (!_useAnimate) //不使用动画
                 {
-                    this.Height = finalHeight;
+                    Height = finalHeight;
                     return;
                 }
 
                 const int step = 8; //帧数
 
-                for (int i = 0; i < step; i++)
+                for (var i = 0; i < step; i++)
                 {
                     if (i == step - 1) //最后一步直达目标
                     {
-                        this.Height = finalHeight;
+                        Height = finalHeight;
                         return;
                     }
 
-                    this.Height += increment / step;
+                    Height += increment / step;
 
                     Application.DoEvents(); //必要
                     Thread.Sleep(10);
@@ -744,26 +556,14 @@ namespace AhDung.WinForm
             /// </summary>
             private class MessageViewer : Control
             {
-                const TextFormatFlags textFlags = TextFormatFlags.EndEllipsis //未完省略号
+                const TextFormatFlags TEXTFLAGS = TextFormatFlags.EndEllipsis //未完省略号
                                                   | TextFormatFlags.WordBreak //允许换行
                                                   | TextFormatFlags.NoPadding //无边距
                                                   | TextFormatFlags.ExternalLeading //行间空白。NT5必须，不然文字挤在一起
                                                   | TextFormatFlags.TextBoxControl; //避免半行
 
-                const int IconSpace = 5; //图标与文本间距
-
-                const float PreferredScale = 13;//最佳文本区块比例（宽/高）
-
-                /// <summary>
-                /// 最小高度。不要重写MinimumSize，那会在窗体移动和缩放时都会执行
-                /// </summary>
-                public int MinimumHeight
-                {
-                    get
-                    {
-                        return (this.Icon != null ? Math.Max(this.Icon.Height, this.FontHeight) : this.FontHeight) + Padding.Vertical;
-                    }
-                }
+                const int IconSpace = 10; //图标与文本间距
+                const float PreferredScale = 12;//最佳文本区块比例（宽/高）
 
                 /// <summary>
                 /// 获取或设置图标
@@ -772,21 +572,19 @@ namespace AhDung.WinForm
 
                 public MessageViewer()
                 {
-                    this.SetStyle(ControlStyles.CacheText, true);
-                    this.SetStyle(ControlStyles.UserPaint, true);
-                    this.SetStyle(ControlStyles.AllPaintingInWmPaint, true);
-                    this.SetStyle(ControlStyles.Selectable, false);
-                    this.SetStyle(ControlStyles.ResizeRedraw, true); //重要
+                    SetStyle(ControlStyles.CacheText, true);
+                    SetStyle(ControlStyles.UserPaint, true);
+                    SetStyle(ControlStyles.AllPaintingInWmPaint, true);
+                    SetStyle(ControlStyles.Selectable, false);
+                    SetStyle(ControlStyles.ResizeRedraw, true); //重要
 
-                    this.DoubleBuffered = true; //双缓冲
+                    DoubleBuffered = true; //双缓冲
                     BackColor = Environment.OSVersion.Version.Major == 5 ? SystemColors.Control : Color.White;
                 }
 
                 //防Dock改变尺寸
-                protected override void SetBoundsCore(int x, int y, int width, int height, BoundsSpecified specified)
-                {
+                protected override void SetBoundsCore(int x, int y, int width, int height, BoundsSpecified specified) =>
                     base.SetBoundsCore(x, y, width, height, specified | BoundsSpecified.Size);
-                }
 
                 /// <summary>
                 /// 计算合适的消息区尺寸
@@ -798,26 +596,29 @@ namespace AhDung.WinForm
                     if (proposedSize.Width < 10) { proposedSize.Width = int.MaxValue; }
                     if (proposedSize.Height < 10) { proposedSize.Height = int.MaxValue; }
 
-                    int reservedWidth = Padding.Horizontal + (this.Icon == null ? 0 : (this.Icon.Width + IconSpace));
+                    var reservedWidth = Padding.Horizontal + (Icon?.Width + IconSpace ?? 0);
 
-                    Size wellSize = Size.Empty;
-                    if (!string.IsNullOrEmpty(this.Text))
+                    var wellSize = Size.Empty;
+                    if (!string.IsNullOrEmpty(Text))
                     {
                         //优化文本块宽高比例
-                        Size size = TextRenderer.MeasureText(this.Text, this.Font, new Size(proposedSize.Width - reservedWidth, 0), textFlags);//用指定宽度测量文本面积
+                        var size = TextRenderer.MeasureText(Text, Font, new Size(proposedSize.Width - reservedWidth, 0), TEXTFLAGS);//用指定宽度测量文本面积
                         wellSize = Convert.ToSingle(size.Width) / size.Height > PreferredScale //过于宽扁的情况
                             ? Size.Ceiling(GetSameSizeWithNewScale(size, PreferredScale))
                             : size;
 
                         //凑齐整行高，确保尾行显示
-                        int lineHeight = TextRenderer.MeasureText(" ", this.Font, new Size(int.MaxValue, 0), textFlags).Height;//单行高，Font.Height不靠谱
-                        int differ;
-                        wellSize.Height += (differ = wellSize.Height % lineHeight) == 0 ? 0 : (lineHeight - differ);
+                        var lineHeight = TextRenderer.MeasureText(" ", Font, new Size(int.MaxValue, 0), TEXTFLAGS).Height;//单行高，Font.Height不靠谱
+                        var differ = wellSize.Height % lineHeight;
+                        if (differ != 0)
+                        {
+                            wellSize.Height += lineHeight - differ;
+                        }
                     }
-                    if (this.Icon != null)
+                    if (Icon != null)
                     {
-                        wellSize.Width += this.Icon.Width + IconSpace;
-                        wellSize.Height = Math.Max(this.Icon.Height, wellSize.Height);
+                        wellSize.Width += Icon.Width + IconSpace;
+                        wellSize.Height = Math.Max(Icon.Height, wellSize.Height);
                     }
                     wellSize += Padding.Size;
 
@@ -832,25 +633,25 @@ namespace AhDung.WinForm
                 /// </summary>
                 protected override void OnPaint(PaintEventArgs e)
                 {
-                    Graphics g = e.Graphics;
-                    Rectangle rect = GetPaddedRectangle();
+                    var g = e.Graphics;
+                    var rect = GetPaddedRectangle();
 
                     //绘制图标
-                    if (this.Icon != null)
+                    if (Icon != null)
                     {
-                        g.DrawIcon(this.Icon, Padding.Left, Padding.Top);
+                        g.DrawIcon(Icon, Padding.Left, Padding.Top);
 
                         //右移文本区
-                        rect.X += this.Icon.Width + IconSpace;
-                        rect.Width -= this.Icon.Width + IconSpace;
+                        rect.X += Icon.Width + IconSpace;
+                        rect.Width -= Icon.Width + IconSpace;
 
                         //若文字太少，则与图标垂直居中
-                        if (this.Text.Length < 100)
+                        if (Text.Length < 100)
                         {
-                            Size textSize = TextRenderer.MeasureText(g, this.Text, this.Font, rect.Size, textFlags);
-                            if (textSize.Height <= this.Icon.Height)
+                            var textSize = TextRenderer.MeasureText(g, Text, Font, rect.Size, TEXTFLAGS);
+                            if (textSize.Height <= Icon.Height)
                             {
-                                rect.Y += (this.Icon.Height - textSize.Height) / 2;
+                                rect.Y += (Icon.Height - textSize.Height) / 2;
                             }
                         }
                     }
@@ -858,7 +659,7 @@ namespace AhDung.WinForm
                     //g.FillRectangle(Brushes.Gainsboro, rect);//test
 
                     //绘制文本
-                    TextRenderer.DrawText(g, this.Text, this.Font, rect, Color.Black, textFlags);
+                    TextRenderer.DrawText(g, Text, Font, rect, Color.Black, TEXTFLAGS);
 
                     base.OnPaint(e);
                 }
@@ -870,8 +671,8 @@ namespace AhDung.WinForm
                 /// <param name="scale">新尺寸比例。需是width/height</param>
                 private static SizeF GetSameSizeWithNewScale(Size src, float scale)
                 {
-                    int sqr = src.Width * src.Height;//原面积
-                    double w = Math.Sqrt(sqr * scale);//新面积宽
+                    var sqr = src.Width * src.Height;//原面积
+                    var w = Math.Sqrt(sqr * scale);//新面积宽
                     return new SizeF(Convert.ToSingle(w), Convert.ToSingle(sqr / w));
                 }
 
@@ -880,26 +681,12 @@ namespace AhDung.WinForm
                 /// </summary>
                 private Rectangle GetPaddedRectangle()
                 {
-                    Rectangle r = this.ClientRectangle;
-                    r.X += this.Padding.Left;
-                    r.Y += this.Padding.Top;
-                    r.Width -= this.Padding.Horizontal;
-                    r.Height -= this.Padding.Vertical;
+                    var r = ClientRectangle;
+                    r.X += Padding.Left;
+                    r.Y += Padding.Top;
+                    r.Width -= Padding.Horizontal;
+                    r.Height -= Padding.Vertical;
                     return r;
-                }
-            }
-
-            /// <summary>
-            /// 屏蔽全选消息的文本框
-            /// </summary>
-            private class TextBoxUnSelectAllable : TextBox
-            {
-                protected override void WndProc(ref Message m)
-                {
-                    //EM_SETSEL
-                    if (m.Msg == 0xB1) { return; }
-
-                    base.WndProc(ref m);
                 }
             }
 
@@ -946,13 +733,13 @@ SUVORK5CYII=";
                 /// </summary>
                 private bool UseAnimate
                 {
-                    get { return useAnimate; }
+                    get => useAnimate;
                     set
                     {
                         if (useAnimate == value) { return; }
 
                         useAnimate = value;
-                        if (IsHandleCreated) { this.CreateHandle(); }
+                        if (IsHandleCreated) { CreateHandle(); }
                     }
                 }
 
@@ -967,7 +754,7 @@ SUVORK5CYII=";
                         if (IsHandleCreated)
                         {
                             //保证isChecked与实情吻合。TB_ISBUTTONCHECKED
-                            isChecked = Convert.ToBoolean(SendMessage(this.Handle, 0x40A, IntPtr.Zero, IntPtr.Zero).ToInt32());
+                            isChecked = Convert.ToBoolean(SendMessage(Handle, 0x40A, IntPtr.Zero, IntPtr.Zero).ToInt32());
                         }
                         return isChecked;
                     }
@@ -980,7 +767,7 @@ SUVORK5CYII=";
                         if (IsHandleCreated)
                         {
                             //TB_CHECKBUTTON
-                            SendMessage(this.Handle, 0x402, IntPtr.Zero, new IntPtr(Convert.ToInt32(value)));
+                            SendMessage(Handle, 0x402, IntPtr.Zero, new IntPtr(Convert.ToInt32(value)));
                         }
 
                         OnCheckedChanged(EventArgs.Empty);
@@ -997,12 +784,12 @@ SUVORK5CYII=";
                     SetStyle(ControlStyles.OptimizedDoubleBuffer, true);
                     SetStyle(ControlStyles.ResizeRedraw, true);
 
-                    this.isToggleMode = true;//写死好了，独立版才提供设置
-                    this.UseAnimate = useAnimate;
+                    isToggleMode = true;//写死好了，独立版才提供设置
+                    UseAnimate = useAnimate;
 
                     //将图标加入imageList
-                    imgList = new ImageList { ImageSize = new System.Drawing.Size(16, 16), ColorDepth = ColorDepth.Depth32Bit };
-                    using (MemoryStream ms = new MemoryStream(Convert.FromBase64String(ImgDataBase64)))
+                    imgList = new ImageList { ImageSize = new Size(16, 16), ColorDepth = ColorDepth.Depth32Bit };
+                    using (var ms = new MemoryStream(Convert.FromBase64String(ImgDataBase64)))
                     {
                         imgList.Images.AddStrip(Image.FromStream(ms));
                     }
@@ -1013,9 +800,9 @@ SUVORK5CYII=";
                 /// </summary>
                 public void PerformClick()
                 {
-                    SendMessage(this.Handle, 0x201, new IntPtr(0x1), IntPtr.Zero);//WM_LBUTTONDOWN
+                    SendMessage(Handle, 0x201, new IntPtr(0x1), IntPtr.Zero);//WM_LBUTTONDOWN
                     Application.DoEvents();
-                    SendMessage(this.Handle, 0x202, IntPtr.Zero, IntPtr.Zero);    //WM_LBUTTONUP
+                    SendMessage(Handle, 0x202, IntPtr.Zero, IntPtr.Zero);    //WM_LBUTTONUP
                 }
 
                 protected override void WndProc(ref Message m)
@@ -1024,7 +811,7 @@ SUVORK5CYII=";
                     if (m.Msg == 0x203) { return; }
 
                     //有节操的响应鼠标动作
-                    if ((m.Msg == 0x201 || m.Msg == 0x202) && (!this.Enabled || !this.Visible))
+                    if ((m.Msg == 0x201 || m.Msg == 0x202) && (!Enabled || !Visible))
                     {
                         return;
                     }
@@ -1036,7 +823,7 @@ SUVORK5CYII=";
                 {
                     get
                     {
-                        CreateParams prms = base.CreateParams;
+                        var prms = base.CreateParams;
                         prms.ClassName = "ToolbarWindow32";
                         prms.Style = 0x40000000
                             | 0x10000000
@@ -1061,30 +848,30 @@ SUVORK5CYII=";
                     base.OnHandleCreated(e);
 
                     //设置imgList
-                    SendMessage(this.Handle, 0x430, IntPtr.Zero, imgList.Handle);//TB_SETIMAGELIST
+                    SendMessage(Handle, 0x430, IntPtr.Zero, imgList.Handle);//TB_SETIMAGELIST
 
                     //准备添加按钮
-                    int btnStructSize = Marshal.SizeOf(typeof(TBBUTTON));
-                    SendMessage(this.Handle, 0x41E, new IntPtr(btnStructSize), IntPtr.Zero);//TB_BUTTONSTRUCTSIZE，必须在添加按钮前
+                    var btnStructSize = Marshal.SizeOf(typeof(TBBUTTON));
+                    SendMessage(Handle, 0x41E, new IntPtr(btnStructSize), IntPtr.Zero);//TB_BUTTONSTRUCTSIZE，必须在添加按钮前
 
                     //构建按钮信息
-                    TBBUTTON btnStruct = new TBBUTTON
+                    var btnStruct = new TBBUTTON
                     {
                         //iBitmap = 0,
                         //idCommand = 0,
                         fsState = 0x4, //TBSTATE_ENABLED
-                        iString = SendMessage(this.Handle, 0x44D, 0, this.Text + '\0')//TB_ADDSTRING
+                        iString = SendMessage(Handle, 0x44D, 0, Text + '\0')//TB_ADDSTRING
                     };
-                    if (this.isToggleMode) { btnStruct.fsStyle = 0x2; }//BTNS_CHECK。作为切换按钮时
+                    if (isToggleMode) { btnStruct.fsStyle = 0x2; }//BTNS_CHECK。作为切换按钮时
 
-                    IntPtr btnStructStart = IntPtr.Zero;
+                    var btnStructStart = IntPtr.Zero;
                     try
                     {
                         btnStructStart = Marshal.AllocHGlobal(btnStructSize);//在非托管区创建一个指针
                         Marshal.StructureToPtr(btnStruct, btnStructStart, true);//把结构体塞到上述指针
 
                         //添加按钮
-                        SendMessage(this.Handle, 0x444, new IntPtr(1)/*按钮数量*/, btnStructStart);//TB_ADDBUTTONS。从指针取按钮信息
+                        SendMessage(Handle, 0x444, new IntPtr(1)/*按钮数量*/, btnStructStart);//TB_ADDBUTTONS。从指针取按钮信息
 
                         //设置按钮尺寸刚好为ToolBar尺寸
                         AdjustButtonSize();
@@ -1112,7 +899,7 @@ SUVORK5CYII=";
                 /// </summary>
                 protected override bool ProcessMnemonic(char charCode)
                 {
-                    if (IsMnemonic(charCode, this.Text))
+                    if (IsMnemonic(charCode, Text))
                     {
                         PerformClick();
                         return true;
@@ -1124,14 +911,17 @@ SUVORK5CYII=";
                 protected override void OnClick(EventArgs e)
                 {
                     //忽略鼠标右键
-                    MouseEventArgs me = e as MouseEventArgs;
-                    if (me != null && me.Button != System.Windows.Forms.MouseButtons.Left)
-                    { return; }
+                    if (e is MouseEventArgs me && me.Button != System.Windows.Forms.MouseButtons.Left)
+                    {
+                        return;
+                    }
 
                     //若是切换模式，直接引发Checked事件（不要通过设置Checked属性引发，因为OnClick发送之前就已经Check了）
                     //存在理论上的不可靠，但暂无更好办法
                     if (isToggleMode)
-                    { this.OnCheckedChanged(EventArgs.Empty); }
+                    {
+                        OnCheckedChanged(EventArgs.Empty);
+                    }
 
                     base.OnClick(e);
                 }
@@ -1148,9 +938,8 @@ SUVORK5CYII=";
                 /// </summary>
                 protected virtual void OnCheckedChanged(EventArgs e)
                 {
-                    SetImageIndex(this.Checked ? 1 : 0);
-
-                    if (CheckedChanged != null) { CheckedChanged(this, e); }
+                    SetImageIndex(Checked ? 1 : 0);
+                    CheckedChanged?.Invoke(this, e);
                 }
 
                 /// <summary>
@@ -1159,7 +948,7 @@ SUVORK5CYII=";
                 private void SetImageIndex(int index)
                 {
                     //TB_CHANGEBITMAP
-                    SendMessage(this.Handle, 0x42B, IntPtr.Zero, new IntPtr(index));
+                    SendMessage(Handle, 0x42B, IntPtr.Zero, new IntPtr(index));
                 }
 
                 /// <summary>
@@ -1167,11 +956,26 @@ SUVORK5CYII=";
                 /// </summary>
                 private void AdjustButtonSize()
                 {
-                    IntPtr lParam = new IntPtr((this.Width & 0xFFFF) | (this.Height << 0x10)); //MakeLParam手法
-                    SendMessage(this.Handle, 0x41F, IntPtr.Zero, lParam); //TB_SETBUTTONSIZE
+                    var lParam = new IntPtr((Width & 0xFFFF) | (Height << 0x10)); //MakeLParam手法
+                    SendMessage(Handle, 0x41F, IntPtr.Zero, lParam); //TB_SETBUTTONSIZE
+                }
+
+                protected override void Dispose(bool disposing)
+                {
+                    if (disposing)
+                    {
+                        if (IsHandleCreated)
+                        {
+                            SendMessage(Handle, 0x400 + 22, IntPtr.Zero, IntPtr.Zero); //TB_DELETEBUTTON
+                        }
+                        imgList?.Dispose();
+                    }
+                    base.Dispose(disposing);
                 }
 
                 #region Win32 API
+                // ReSharper disable MemberCanBePrivate.Local
+                // ReSharper disable FieldCanBeMadeReadOnly.Local
 
                 [DllImport("user32.dll", CharSet = CharSet.Auto)]
                 private static extern IntPtr SendMessage(IntPtr hWnd, int msg, IntPtr wParam, IntPtr lParam);
@@ -1192,6 +996,8 @@ SUVORK5CYII=";
                     public IntPtr iString;
                 }
 
+                // ReSharper restore FieldCanBeMadeReadOnly.Local
+                // ReSharper restore MemberCanBePrivate.Local
                 #endregion
             }
 
