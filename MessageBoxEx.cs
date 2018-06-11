@@ -86,7 +86,7 @@ namespace AhDung.WinForm
         /// <param name="buttons">按钮组合</param>
         /// <param name="icon">图标</param>
         /// <param name="defaultButton">默认按钮</param>
-        /// <param name="expand">展开详细信息</param>
+        /// <param name="expand">展开详细信息（仅当存在附加消息时有效）</param>
         /// <param name="buttonsText">按钮文本</param>
         public static DialogResult Show(string message, string caption = null, string attach = null, MessageBoxButtons buttons = MessageBoxButtons.OK, MessageBoxIcon icon = MessageBoxIcon.None, MessageBoxDefaultButton defaultButton = MessageBoxDefaultButton.Button1, bool expand = false, string[] buttonsText = null)
         {
@@ -102,11 +102,11 @@ namespace AhDung.WinForm
         /// </summary>
         /// <param name="message">消息文本</param>
         /// <param name="caption">消息框标题</param>
-        /// <param name="exception">异常实例</param>
+        /// <param name="exception">异常</param>
         /// <param name="buttons">按钮组合</param>
         /// <param name="icon">图标</param>
         /// <param name="defaultButton">默认按钮</param>
-        /// <param name="expand">展开详细信息</param>
+        /// <param name="expand">展开详细信息（仅当异常不为空时有效）</param>
         /// <param name="buttonsText">按钮文本</param>
         public static DialogResult Show(string message, string caption, Exception exception, MessageBoxButtons buttons = MessageBoxButtons.OK, MessageBoxIcon icon = MessageBoxIcon.None, MessageBoxDefaultButton defaultButton = MessageBoxDefaultButton.Button1, bool expand = false, string[] buttonsText = null) =>
             Show(message, caption, exception?.ToString(), buttons, icon, defaultButton, expand, buttonsText);
@@ -174,22 +174,24 @@ namespace AhDung.WinForm
                 _buttons = buttons;
                 _expand = expand;
                 _hasAttach = !string.IsNullOrEmpty(attach);
-
                 _msgViewer = CreateMessageViewer(icon, message, out _messageSound);
-                _panelButtons = CreateButtonsPanel(_hasAttach, buttons, defaultButton, buttonsText, out var createdButtons);
-                _ckbToggle = _hasAttach ? (ToggleButton)createdButtons[0] : null;
+                _panelButtons = CreateButtonsPanel(_hasAttach, _useAnimate, buttons, defaultButton, buttonsText, out var createdButtons, out int dfBtnIdx);
+                if (_hasAttach)
+                {
+                    _ckbToggle = (ToggleButton)createdButtons[0];
+                    _ckbToggle.CheckedChanged += ckbToggle_CheckedChanged;
+                }
+
+                SuspendLayout();
+
                 Controls.Add(_msgViewer);
                 Controls.Add(_panelButtons);
-
                 if (_hasAttach)
                 {
                     _panelAttach = CreateAttachPanel(attach);
                     _panelAttach.Resize += plAttachZone_Resize;
                     Controls.Add(_panelAttach);
                 }
-
-                SuspendLayout();
-
                 StartPosition = ActiveForm == null ? FormStartPosition.CenterScreen : FormStartPosition.CenterParent;
                 Font = GlobalFont;
                 DoubleBuffered = true;
@@ -200,6 +202,7 @@ namespace AhDung.WinForm
                 ShowInTaskbar = false;
                 SizeGripStyle = SizeGripStyle.Show;
                 Text = caption;
+                AcceptButton = (Button)createdButtons[dfBtnIdx];
 
                 //有取消按钮时允许ESC关闭
                 if (((int)buttons & 1) == 1)
@@ -212,29 +215,6 @@ namespace AhDung.WinForm
 
                 ResumeLayout(false);
                 PerformLayout();
-            }
-
-            PanelBasic CreateAttachPanel(string attach)
-            {
-                var txb = new TextBox
-                {
-                    Anchor = (AnchorStyles)15, //上下左右
-                    Location = new Point(10, 7),
-                    ReadOnly = true,
-                    Multiline = true,
-                    ScrollBars = ScrollBars.Vertical,
-                    Text = attach
-                };
-                var panel = new PanelBasic();
-                panel.SuspendLayout();
-
-                panel.Dock = DockStyle.Fill;
-                panel.Visible = false;
-                panel.Size = new Size(txb.Width + 20, txb.Height + 9);
-                panel.Controls.Add(txb);
-
-                panel.ResumeLayout(false);
-                return panel;
             }
 
             #region 重写基类
@@ -294,7 +274,11 @@ namespace AhDung.WinForm
             {
                 if (disposing)
                 {
-                    _ckbToggle?.Dispose();
+                    if (_ckbToggle != null)
+                    {
+                        _ckbToggle.CheckedChanged -= ckbToggle_CheckedChanged;
+                        _ckbToggle.Dispose();
+                    }
                 }
                 base.Dispose(disposing);
             }
@@ -348,85 +332,7 @@ namespace AhDung.WinForm
 
             #region 辅助+私有方法
 
-            PanelBasic CreateButtonsPanel(bool hasAttach, MessageBoxButtons buttons, MessageBoxDefaultButton defaultButton, string[] buttonsText, out Control[] createdButtons)
-            {
-                // 由于CreateButtonsPanel时仍未加入Form，所以字体尚未继承Form，
-                // 此时依赖字体的尺寸计算都不可靠，所以创建按钮时需指定字体
-
-                const int PADDING = 10; //按钮距边
-                const int SPACING = 3; //按钮间距
-
-                var lkl = new LinkedList<Control>();
-                var width = PADDING;
-                if (hasAttach)
-                {
-                    var btn = new ToggleButton(_useAnimate) { Font = GlobalFont, MinimumSize = new Size(93, 27), Text = "详细信息(&D)", Location = new Point(width, PADDING) };
-                    btn.Size = btn.MinimumSize;
-                    btn.CheckedChanged += ckbToggle_CheckedChanged;
-                    lkl.AddLast(btn);
-                    width += 93 + SPACING + 10; // 详细信息按钮 与 正常按钮之间多间隔一点
-                }
-                switch (buttons)
-                {
-                    case MessageBoxButtons.AbortRetryIgnore:
-                        width += Add(width, GetText(0) ?? "中止(&A)", DialogResult.Abort, defaultButton == MessageBoxDefaultButton.Button1) + SPACING;
-                        width += Add(width, GetText(1) ?? "重试(&R)", DialogResult.Retry, defaultButton == MessageBoxDefaultButton.Button2) + SPACING;
-                        width += Add(width, GetText(2) ?? "忽略(&I)", DialogResult.Ignore, defaultButton == MessageBoxDefaultButton.Button3) + PADDING;
-                        break;
-                    case MessageBoxButtons.OK:
-                        width += Add(width, GetText(0) ?? "确定(&O)", DialogResult.OK, true) + PADDING;
-                        break;
-                    case MessageBoxButtons.OKCancel:
-                        width += Add(width, GetText(0) ?? "确定(&O)", DialogResult.OK, defaultButton != MessageBoxDefaultButton.Button2) + SPACING;
-                        width += Add(width, GetText(1) ?? "取消(&C)", DialogResult.Cancel, defaultButton == MessageBoxDefaultButton.Button2) + PADDING;
-                        break;
-                    case MessageBoxButtons.RetryCancel:
-                        width += Add(width, GetText(0) ?? "重试(&R)", DialogResult.Retry, defaultButton != MessageBoxDefaultButton.Button2) + SPACING;
-                        width += Add(width, GetText(1) ?? "取消(&C)", DialogResult.Cancel, defaultButton == MessageBoxDefaultButton.Button2) + PADDING;
-                        break;
-                    case MessageBoxButtons.YesNo:
-                        width += Add(width, GetText(0) ?? "是(&Y)", DialogResult.Yes, defaultButton != MessageBoxDefaultButton.Button2) + SPACING;
-                        width += Add(width, GetText(1) ?? "否(&N)", DialogResult.No, defaultButton == MessageBoxDefaultButton.Button2) + PADDING;
-                        break;
-                    case MessageBoxButtons.YesNoCancel:
-                        width += Add(width, GetText(0) ?? "是(&Y)", DialogResult.Yes, defaultButton == MessageBoxDefaultButton.Button1) + SPACING;
-                        width += Add(width, GetText(1) ?? "否(&N)", DialogResult.No, defaultButton == MessageBoxDefaultButton.Button2) + SPACING;
-                        width += Add(width, GetText(2) ?? "取消(&C)", DialogResult.Cancel, defaultButton == MessageBoxDefaultButton.Button3) + PADDING;
-                        break;
-                }
-
-                var btnArr = new Control[lkl.Count];
-                lkl.CopyTo(btnArr, 0);
-                createdButtons = btnArr;
-
-                var pl = new PanelBasic();
-                pl.SuspendLayout();
-
-                pl.Size = pl.MinimumSize = new Size(width, btnArr[0].Height + PADDING);
-                pl.Dock = DockStyle.Bottom;
-                pl.Controls.AddRange(btnArr);
-
-                pl.ResumeLayout(false);
-                return pl;
-
-                //返回按钮宽度
-                int Add(int left, string text, DialogResult result, bool setDefault = false)
-                {
-                    var btn = new Button { Font = GlobalFont, AutoSize = true, Text = text, MinimumSize = new Size(85, 27), Anchor = AnchorStyles.Right, DialogResult = result };
-                    btn.Size = btn.PreferredSize;
-                    btn.Location = new Point(left, PADDING);
-                    lkl.AddLast(btn);
-                    if (setDefault)
-                    {
-                        AcceptButton = btn;
-                    }
-                    return btn.Width;
-                }
-
-                string GetText(int i) => (buttonsText?.Length ?? 0) > i && !string.IsNullOrEmpty(buttonsText[i]) ? buttonsText[i] : null;
-            }
-
-            MessageViewer CreateMessageViewer(MessageBoxIcon icon, string text, out string sound)
+            static MessageViewer CreateMessageViewer(MessageBoxIcon icon, string text, out string sound)
             {
                 Icon ico;
                 switch (icon)
@@ -468,10 +374,112 @@ namespace AhDung.WinForm
                 view.Icon = ico;
                 view.Text = text;
                 view.Padding = new Padding(21, 18, 21, 18);
-                view.MinimumSize = new Size((ico?.Width ?? 0) + view.Padding.Horizontal, Math.Max(ico?.Height ?? 0, FontHeight) + view.Padding.Vertical);
+                view.MinimumSize = new Size((ico?.Width ?? 0) + view.Padding.Horizontal, Math.Max(ico?.Height ?? 0, GlobalFont.Height) + view.Padding.Vertical);
 
                 view.ResumeLayout(false);
                 return view;
+            }
+
+            static PanelBasic CreateButtonsPanel(bool hasAttach, bool useAnimate, MessageBoxButtons buttons, MessageBoxDefaultButton defaultButton, string[] buttonsText, out Control[] createdButtons, out int defaultButtonIndex)
+            {
+                // 由于CreateButtonsPanel时仍未加入Form，所以字体尚未继承Form，
+                // 此时依赖字体的尺寸计算都不可靠，所以创建按钮时需指定字体
+
+                const int PADDING = 10; //按钮距边
+                const int SPACING = 3; //按钮间距
+
+                var buttonList = new LinkedList<Control>();
+                var width = PADDING;
+                if (hasAttach)
+                {
+                    var btn = new ToggleButton(useAnimate) { Font = GlobalFont, MinimumSize = new Size(93, 27), Text = "详细信息(&D)", Location = new Point(width, PADDING) };
+                    btn.Size = btn.MinimumSize;
+                    buttonList.AddLast(btn);
+                    width += 93 + SPACING + 10; // 详细信息按钮 与 正常按钮之间多间隔一点
+                }
+                switch (buttons)
+                {
+                    case MessageBoxButtons.AbortRetryIgnore:
+                        defaultButtonIndex = buttonList.Count + (int)defaultButton / 0x100;
+                        width += Add(width, GetText(0) ?? "中止(&A)", DialogResult.Abort) + SPACING;
+                        width += Add(width, GetText(1) ?? "重试(&R)", DialogResult.Retry) + SPACING;
+                        width += Add(width, GetText(2) ?? "忽略(&I)", DialogResult.Ignore) + PADDING;
+                        break;
+                    case MessageBoxButtons.OK:
+                        defaultButtonIndex = buttonList.Count;
+                        width += Add(width, GetText(0) ?? "确定(&O)", DialogResult.OK) + PADDING;
+                        break;
+                    case MessageBoxButtons.OKCancel:
+                        defaultButtonIndex = buttonList.Count + (defaultButton == MessageBoxDefaultButton.Button2 ? 1 : 0);
+                        width += Add(width, GetText(0) ?? "确定(&O)", DialogResult.OK) + SPACING;
+                        width += Add(width, GetText(1) ?? "取消(&C)", DialogResult.Cancel) + PADDING;
+                        break;
+                    case MessageBoxButtons.RetryCancel:
+                        defaultButtonIndex = buttonList.Count + (defaultButton == MessageBoxDefaultButton.Button2 ? 1 : 0);
+                        width += Add(width, GetText(0) ?? "重试(&R)", DialogResult.Retry) + SPACING;
+                        width += Add(width, GetText(1) ?? "取消(&C)", DialogResult.Cancel) + PADDING;
+                        break;
+                    case MessageBoxButtons.YesNo:
+                        defaultButtonIndex = buttonList.Count + (defaultButton == MessageBoxDefaultButton.Button2 ? 1 : 0);
+                        width += Add(width, GetText(0) ?? "是(&Y)", DialogResult.Yes) + SPACING;
+                        width += Add(width, GetText(1) ?? "否(&N)", DialogResult.No) + PADDING;
+                        break;
+                    case MessageBoxButtons.YesNoCancel:
+                        defaultButtonIndex = buttonList.Count + (int)defaultButton / 0x100;
+                        width += Add(width, GetText(0) ?? "是(&Y)", DialogResult.Yes) + SPACING;
+                        width += Add(width, GetText(1) ?? "否(&N)", DialogResult.No) + SPACING;
+                        width += Add(width, GetText(2) ?? "取消(&C)", DialogResult.Cancel) + PADDING;
+                        break;
+                    default: throw new InvalidEnumArgumentException();
+                }
+
+                createdButtons = new Control[buttonList.Count];
+                buttonList.CopyTo(createdButtons, 0);
+
+                var pl = new PanelBasic();
+                pl.SuspendLayout();
+
+                pl.Size = pl.MinimumSize = new Size(width, createdButtons[0].Height + PADDING);
+                pl.Dock = DockStyle.Bottom;
+                pl.Controls.AddRange(createdButtons);
+
+                pl.ResumeLayout(false);
+                return pl;
+
+                //返回按钮宽度
+                int Add(int left, string text, DialogResult result)
+                {
+                    var btn = new Button { Font = GlobalFont, AutoSize = true, Text = text, MinimumSize = new Size(85, 27), Anchor = AnchorStyles.Right, DialogResult = result };
+                    btn.Size = btn.PreferredSize;
+                    btn.Location = new Point(left, PADDING);
+                    buttonList.AddLast(btn);
+                    return btn.Width;
+                }
+
+                string GetText(int i) => (buttonsText?.Length ?? 0) > i && !string.IsNullOrEmpty(buttonsText[i]) ? buttonsText[i] : null;
+            }
+
+            static PanelBasic CreateAttachPanel(string attach)
+            {
+                var txb = new TextBox
+                {
+                    Anchor = (AnchorStyles)15, //上下左右
+                    Location = new Point(10, 7),
+                    ReadOnly = true,
+                    Multiline = true,
+                    ScrollBars = ScrollBars.Vertical,
+                    Text = attach
+                };
+                var panel = new PanelBasic();
+                panel.SuspendLayout();
+
+                panel.Dock = DockStyle.Fill;
+                panel.Visible = false;
+                panel.Size = new Size(txb.Width + 20, txb.Height + 9);
+                panel.Controls.Add(txb);
+
+                panel.ResumeLayout(false);
+                return panel;
             }
 
             /// <summary>

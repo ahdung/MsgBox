@@ -61,10 +61,10 @@
             this.ckbExpand = new System.Windows.Forms.CheckBox();
             this.label5 = new System.Windows.Forms.Label();
             this.txbButtonsText = new System.Windows.Forms.TextBox();
-            this.button1 = new System.Windows.Forms.Button();
-            this.button2 = new System.Windows.Forms.Button();
-            this.button3 = new System.Windows.Forms.Button();
-            this.button4 = new System.Windows.Forms.Button();
+            this.btnShowInfo = new System.Windows.Forms.Button();
+            this.btnShowWarning = new System.Windows.Forms.Button();
+            this.btnShowError = new System.Windows.Forms.Button();
+            this.btnShowQuestion = new System.Windows.Forms.Button();
             this.grpMsbButtons.SuspendLayout();
             this.grpMsgIcon.SuspendLayout();
             this.grpDfButton.SuspendLayout();
@@ -454,54 +454,54 @@
             this.txbButtonsText.Text = "1st btn\'s custom Text(&O)\r\n\r\n3rd\r\nunnecessary\r\nunnecessary";
             this.txbButtonsText.WordWrap = false;
             // 
-            // button1
+            // btnShowInfo
             // 
-            this.button1.Location = new System.Drawing.Point(12, 44);
-            this.button1.Name = "button1";
-            this.button1.Size = new System.Drawing.Size(79, 20);
-            this.button1.TabIndex = 14;
-            this.button1.Text = "ShowInfo";
-            this.button1.UseVisualStyleBackColor = true;
-            this.button1.Click += new System.EventHandler(this.button1_Click);
+            this.btnShowInfo.Location = new System.Drawing.Point(12, 44);
+            this.btnShowInfo.Name = "btnShowInfo";
+            this.btnShowInfo.Size = new System.Drawing.Size(79, 20);
+            this.btnShowInfo.TabIndex = 14;
+            this.btnShowInfo.Text = "ShowInfo";
+            this.btnShowInfo.UseVisualStyleBackColor = true;
+            this.btnShowInfo.Click += new System.EventHandler(this.btnShowInfo_Click);
             // 
-            // button2
+            // btnShowWarning
             // 
-            this.button2.Location = new System.Drawing.Point(93, 44);
-            this.button2.Name = "button2";
-            this.button2.Size = new System.Drawing.Size(79, 20);
-            this.button2.TabIndex = 14;
-            this.button2.Text = "ShowWarning";
-            this.button2.UseVisualStyleBackColor = true;
-            this.button2.Click += new System.EventHandler(this.button2_Click);
+            this.btnShowWarning.Location = new System.Drawing.Point(93, 44);
+            this.btnShowWarning.Name = "btnShowWarning";
+            this.btnShowWarning.Size = new System.Drawing.Size(79, 20);
+            this.btnShowWarning.TabIndex = 14;
+            this.btnShowWarning.Text = "ShowWarning";
+            this.btnShowWarning.UseVisualStyleBackColor = true;
+            this.btnShowWarning.Click += new System.EventHandler(this.btnShowWarning_Click);
             // 
-            // button3
+            // btnShowError
             // 
-            this.button3.Location = new System.Drawing.Point(174, 44);
-            this.button3.Name = "button3";
-            this.button3.Size = new System.Drawing.Size(79, 20);
-            this.button3.TabIndex = 14;
-            this.button3.Text = "ShowError";
-            this.button3.UseVisualStyleBackColor = true;
-            this.button3.Click += new System.EventHandler(this.button3_Click);
+            this.btnShowError.Location = new System.Drawing.Point(174, 44);
+            this.btnShowError.Name = "btnShowError";
+            this.btnShowError.Size = new System.Drawing.Size(79, 20);
+            this.btnShowError.TabIndex = 14;
+            this.btnShowError.Text = "ShowError";
+            this.btnShowError.UseVisualStyleBackColor = true;
+            this.btnShowError.Click += new System.EventHandler(this.btnShowError_Click);
             // 
-            // button4
+            // btnShowQuestion
             // 
-            this.button4.Location = new System.Drawing.Point(255, 44);
-            this.button4.Name = "button4";
-            this.button4.Size = new System.Drawing.Size(87, 20);
-            this.button4.TabIndex = 14;
-            this.button4.Text = "ShowQuestion";
-            this.button4.UseVisualStyleBackColor = true;
-            this.button4.Click += new System.EventHandler(this.button4_Click);
+            this.btnShowQuestion.Location = new System.Drawing.Point(255, 44);
+            this.btnShowQuestion.Name = "btnShowQuestion";
+            this.btnShowQuestion.Size = new System.Drawing.Size(87, 20);
+            this.btnShowQuestion.TabIndex = 14;
+            this.btnShowQuestion.Text = "ShowQuestion";
+            this.btnShowQuestion.UseVisualStyleBackColor = true;
+            this.btnShowQuestion.Click += new System.EventHandler(this.btnShowQuestion_Click);
             // 
             // FmMsgBoxExTester
             // 
             this.AutoScroll = true;
             this.ClientSize = new System.Drawing.Size(863, 582);
-            this.Controls.Add(this.button4);
-            this.Controls.Add(this.button3);
-            this.Controls.Add(this.button2);
-            this.Controls.Add(this.button1);
+            this.Controls.Add(this.btnShowQuestion);
+            this.Controls.Add(this.btnShowError);
+            this.Controls.Add(this.btnShowWarning);
+            this.Controls.Add(this.btnShowInfo);
             this.Controls.Add(this.txbButtonsText);
             this.Controls.Add(this.label5);
             this.Controls.Add(this.ckbExpand);
@@ -570,9 +570,9 @@
         private System.Windows.Forms.CheckBox ckbExpand;
         private System.Windows.Forms.Label label5;
         private System.Windows.Forms.TextBox txbButtonsText;
-        private System.Windows.Forms.Button button1;
-        private System.Windows.Forms.Button button2;
-        private System.Windows.Forms.Button button3;
-        private System.Windows.Forms.Button button4;
+        private System.Windows.Forms.Button btnShowInfo;
+        private System.Windows.Forms.Button btnShowWarning;
+        private System.Windows.Forms.Button btnShowError;
+        private System.Windows.Forms.Button btnShowQuestion;
     }
 }

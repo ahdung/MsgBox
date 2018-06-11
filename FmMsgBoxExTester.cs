@@ -77,22 +77,22 @@ namespace AhDung.WinForm
             Process.Start("http://www.cnblogs.com/ahdung/p/4631233.html");
         }
 
-        private void button1_Click(object sender, EventArgs e)
+        private void btnShowInfo_Click(object sender, EventArgs e)
         {
-            MessageBoxEx.ShowInfo(txbMessage.Text, txbAttachMessage.Text, expand: ckbExpand.Checked, buttonText: GetFirstLine(txbButtonsText));
+            MessageBoxEx.ShowInfo(txbMessage.Text, txbAttachMessage.Text, txbCaption.Text, ckbExpand.Checked, GetFirstLine(txbButtonsText));
         }
 
-        private void button2_Click(object sender, EventArgs e)
+        private void btnShowWarning_Click(object sender, EventArgs e)
         {
-            MessageBoxEx.ShowWarning(txbMessage.Text, txbAttachMessage.Text, expand: ckbExpand.Checked, buttonText: GetFirstLine(txbButtonsText));
+            MessageBoxEx.ShowWarning(txbMessage.Text, txbAttachMessage.Text, txbCaption.Text, ckbExpand.Checked, GetFirstLine(txbButtonsText));
         }
 
-        private void button3_Click(object sender, EventArgs e)
+        private void btnShowError_Click(object sender, EventArgs e)
         {
-            MessageBoxEx.ShowError(txbMessage.Text, txbAttachMessage.Text, expand: ckbExpand.Checked, buttonText: GetFirstLine(txbButtonsText));
+            MessageBoxEx.ShowError(txbMessage.Text, txbAttachMessage.Text, txbCaption.Text, ckbExpand.Checked, GetFirstLine(txbButtonsText));
         }
 
-        private void button4_Click(object sender, EventArgs e)
+        private void btnShowQuestion_Click(object sender, EventArgs e)
         {
             var result = MessageBoxEx.ShowQuestion(txbMessage.Text, txbAttachMessage.Text, defaultButton: msgDfButton, expand: ckbExpand.Checked, buttonsText: txbButtonsText.Lines);
             txbResult.AppendText($"{result}\r\n");
