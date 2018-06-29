@@ -1,6 +1,6 @@
 ﻿namespace AhDung.WinForm
 {
-    partial class FmMsgBoxExTester
+    partial class FmTester
     {
         /// <summary>
         /// Required designer variable.
@@ -74,9 +74,9 @@
             // 
             this.btnShowMsgEx.Location = new System.Drawing.Point(12, 12);
             this.btnShowMsgEx.Name = "btnShowMsgEx";
-            this.btnShowMsgEx.Size = new System.Drawing.Size(103, 23);
+            this.btnShowMsgEx.Size = new System.Drawing.Size(89, 23);
             this.btnShowMsgEx.TabIndex = 0;
-            this.btnShowMsgEx.Text = "MessageBoxEx";
+            this.btnShowMsgEx.Text = "MsgBox";
             this.btnShowMsgEx.Click += new System.EventHandler(this.btnShowMsgEx_Click);
             // 
             // txbResult
@@ -414,7 +414,7 @@
             // 
             // btnShowMsgStd
             // 
-            this.btnShowMsgStd.Location = new System.Drawing.Point(121, 12);
+            this.btnShowMsgStd.Location = new System.Drawing.Point(107, 12);
             this.btnShowMsgStd.Name = "btnShowMsgStd";
             this.btnShowMsgStd.Size = new System.Drawing.Size(89, 23);
             this.btnShowMsgStd.TabIndex = 1;
@@ -523,7 +523,7 @@
             this.Controls.Add(this.btnShowMsgEx);
             this.Name = "FmMsgBoxExTester";
             this.SizeGripStyle = System.Windows.Forms.SizeGripStyle.Show;
-            this.Text = "MsgBoxExTester";
+            this.Text = "MsgBoxTester";
             this.grpMsbButtons.ResumeLayout(false);
             this.grpMsbButtons.PerformLayout();
             this.grpMsgIcon.ResumeLayout(false);

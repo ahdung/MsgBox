@@ -4,13 +4,13 @@ using System.Windows.Forms;
 
 namespace AhDung.WinForm
 {
-    public partial class FmMsgBoxExTester : Form
+    public partial class FmTester : Form
     {
         MessageBoxButtons msgButtons;
         MessageBoxIcon msgIcon;
         MessageBoxDefaultButton msgDfButton;
 
-        public FmMsgBoxExTester()
+        public FmTester()
         {
             InitializeComponent();
 
@@ -26,7 +26,7 @@ namespace AhDung.WinForm
         private void btnShowMsgEx_Click(object sender, EventArgs e)
         {
             txbResult.AppendText(
-            MessageBoxEx.Show(txbMessage.Text
+            MsgBox.Show(txbMessage.Text
                 , txbCaption.Text
                 , txbAttachMessage.Text
                 , msgButtons
@@ -64,12 +64,12 @@ namespace AhDung.WinForm
 
         private void ckbEnableAnimate_CheckedChanged(object sender, EventArgs e)
         {
-            MessageBoxEx.EnableAnimate = ckbEnableAnimate.Checked;
+            MsgBox.EnableAnimate = ckbEnableAnimate.Checked;
         }
 
         private void ckbEnableSound_CheckedChanged(object sender, EventArgs e)
         {
-            MessageBoxEx.EnableSound = ckbEnableSound.Checked;
+            MsgBox.EnableSound = ckbEnableSound.Checked;
         }
 
         private void linkLabel1_LinkClicked(object sender, LinkLabelLinkClickedEventArgs e)
@@ -79,22 +79,22 @@ namespace AhDung.WinForm
 
         private void btnShowInfo_Click(object sender, EventArgs e)
         {
-            MessageBoxEx.ShowInfo(txbMessage.Text, txbAttachMessage.Text, txbCaption.Text, ckbExpand.Checked, GetFirstLine(txbButtonsText));
+            MsgBox.ShowInfo(txbMessage.Text, txbAttachMessage.Text, txbCaption.Text, ckbExpand.Checked, GetFirstLine(txbButtonsText));
         }
 
         private void btnShowWarning_Click(object sender, EventArgs e)
         {
-            MessageBoxEx.ShowWarning(txbMessage.Text, txbAttachMessage.Text, txbCaption.Text, ckbExpand.Checked, GetFirstLine(txbButtonsText));
+            MsgBox.ShowWarning(txbMessage.Text, txbAttachMessage.Text, txbCaption.Text, ckbExpand.Checked, GetFirstLine(txbButtonsText));
         }
 
         private void btnShowError_Click(object sender, EventArgs e)
         {
-            MessageBoxEx.ShowError(txbMessage.Text, txbAttachMessage.Text, txbCaption.Text, ckbExpand.Checked, GetFirstLine(txbButtonsText));
+            MsgBox.ShowError(txbMessage.Text, txbAttachMessage.Text, txbCaption.Text, ckbExpand.Checked, GetFirstLine(txbButtonsText));
         }
 
         private void btnShowQuestion_Click(object sender, EventArgs e)
         {
-            var result = MessageBoxEx.ShowQuestion(txbMessage.Text, txbAttachMessage.Text, defaultButton: msgDfButton, expand: ckbExpand.Checked, buttonsText: txbButtonsText.Lines);
+            var result = MsgBox.ShowQuestion(txbMessage.Text, txbAttachMessage.Text, defaultButton: msgDfButton, expand: ckbExpand.Checked, buttonsText: txbButtonsText.Lines);
             txbResult.AppendText($"{result}\r\n");
         }
 

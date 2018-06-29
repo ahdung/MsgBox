@@ -13,7 +13,7 @@ namespace AhDung.WinForm
         {
             Application.EnableVisualStyles();
             Application.SetCompatibleTextRenderingDefault(false);
-            Application.Run(new FmMsgBoxExTester());
+            Application.Run(new FmTester());
             //Application.Run(new FmTestSound());
         }
     }

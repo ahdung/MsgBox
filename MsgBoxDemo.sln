@@ -3,7 +3,7 @@ Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio 15
 VisualStudioVersion = 15.0.27703.2026
 MinimumVisualStudioVersion = 10.0.40219.1
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "MessageBoxExApp", "MessageBoxExApp.csproj", "{7EBA50FA-308D-487F-BDDA-CF602D841A6B}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "MsgBoxDemo", "MsgBoxDemo.csproj", "{7EBA50FA-308D-487F-BDDA-CF602D841A6B}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
