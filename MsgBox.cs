@@ -18,14 +18,14 @@ namespace AhDung.WinForm
     public static class MsgBox
     {
         //异常消息文本
-        const string InvalidButtonExString = "按钮参数不是有效的枚举项！";
-        const string InvalidIconExString = "图标参数不是有效的枚举项！";
+        const string InvalidButtonExString   = "按钮参数不是有效的枚举项！";
+        const string InvalidIconExString     = "图标参数不是有效的枚举项！";
         const string InvalidDfButtonExString = "默认按钮参数不是有效的枚举项！";
 
         //提示情景标题
-        const string InfoCaption = "提示...";
+        const string InfoCaption    = "提示...";
         const string WarningCaption = "警告...";
-        const string ErrorCaption = "错误...";
+        const string ErrorCaption   = "错误...";
 
         /// <summary>
         /// 是否启用动画效果
@@ -36,7 +36,6 @@ namespace AhDung.WinForm
         /// 是否启用声音反馈
         /// </summary>
         public static bool EnableSound { get; set; } = true;
-
 
         #region 公开方法
 
@@ -113,7 +112,6 @@ namespace AhDung.WinForm
 
         #endregion
 
-        //内部方法，不检查参数有效性
         private static DialogResult ShowCore(string message, string caption = null, string attach = null, MessageBoxButtons buttons = MessageBoxButtons.OK, MessageBoxIcon icon = MessageBoxIcon.None, MessageBoxDefaultButton defaultButton = MessageBoxDefaultButton.Button1, bool expand = false, string[] buttonsText = null)
         {
             using (var f = new MessageForm(message, caption, buttons, icon, defaultButton, attach, EnableAnimate, EnableSound, expand, buttonsText))
@@ -127,10 +125,10 @@ namespace AhDung.WinForm
          下面是消息窗体相关
          ---------------*/
 
+        //参数有效性由MsgBox负责
         /// <summary>
         /// 消息窗体
         /// </summary>
-        /// <remarks>参数有效性由MsgBox负责</remarks>
         private class MessageForm : Form
         {
             /* todo 已知细小问题：
@@ -175,7 +173,7 @@ namespace AhDung.WinForm
                 _expand = expand;
                 _hasAttach = !string.IsNullOrEmpty(attach);
                 _msgViewer = CreateMessageViewer(icon, message, out _messageSound);
-                _panelButtons = CreateButtonsPanel(_hasAttach, _useAnimate, buttons, defaultButton, buttonsText, out var createdButtons, out int dfBtnIdx);
+                _panelButtons = CreateButtonsPanel(_hasAttach, _useAnimate, _buttons, defaultButton, buttonsText, out var createdButtons, out int dfBtnIdx);
                 if (_hasAttach)
                 {
                     _ckbToggle = (ToggleButton)createdButtons[0];
@@ -200,12 +198,13 @@ namespace AhDung.WinForm
                 Padding = new Padding(0, 0, 0, 17);
                 ShowIcon = false;
                 ShowInTaskbar = false;
+                TopMost = true;
                 SizeGripStyle = SizeGripStyle.Show;
                 Text = caption;
                 AcceptButton = (Button)createdButtons[dfBtnIdx];
 
-                //有取消按钮时允许ESC关闭
-                if (((int)buttons & 1) == 1)
+                //只有【确定】或有【取消】按钮时允许按ESC关闭
+                if (_buttons == MessageBoxButtons.OK || ((int)_buttons & 1) == 1)
                 {
                     CancelButton = (Button)createdButtons[createdButtons.Length - 1];
                 }
@@ -241,20 +240,22 @@ namespace AhDung.WinForm
 
                 //播放消息提示音
                 if (_useSound) { PlaySystemSound(_messageSound); }
+
+                TopMost = false;
             }
 
             protected override CreateParams CreateParams
             {
                 get
                 {
-                    var prms = base.CreateParams;
+                    var cp = base.CreateParams;
 
                     if (((int)_buttons & 1) == 0) //没有Cancel按钮时屏蔽关闭按钮，刚好在偶数项
                     {
-                        prms.ClassStyle |= 0x200;
+                        cp.ClassStyle |= 0x200;
                     }
 
-                    return prms;
+                    return cp;
                 }
             }
 
@@ -395,7 +396,7 @@ namespace AhDung.WinForm
                     var btn = new ToggleButton(useAnimate) { Font = GlobalFont, MinimumSize = new Size(93, 27), Text = "详细信息(&D)", Location = new Point(width, PADDING) };
                     btn.Size = btn.MinimumSize;
                     buttonList.AddLast(btn);
-                    width += 93 + SPACING + 10; // 详细信息按钮 与 正常按钮之间多间隔一点
+                    width += btn.Width + SPACING + 10; // 详细信息按钮 与 正常按钮之间多间隔一点
                 }
                 switch (buttons)
                 {
@@ -484,28 +485,29 @@ namespace AhDung.WinForm
             /// <summary>
             /// 改变窗体高度。内部有动画处理
             /// </summary>
-            /// <param name="increment">增量（负数即为减小高度）</param>
-            private void ChangeFormHeight(int increment)
+            /// <param name="delta">增量（负数为减小高度）</param>
+            private void ChangeFormHeight(int delta)
             {
-                var finalHeight = Height + increment; //正确的目标高度
+                var target = Height + delta; //精确的目标高度
 
                 if (!_useAnimate) //不使用动画
                 {
-                    Height = finalHeight;
+                    Height = target;
                     return;
                 }
 
                 const int step = 8; //帧数
+                var avg = delta / step; //每帧平均高度
 
                 for (var i = 0; i < step; i++)
                 {
                     if (i == step - 1) //最后一步直达目标
                     {
-                        Height = finalHeight;
+                        Height = target;
                         return;
                     }
 
-                    Height += increment / step;
+                    Height += avg;
 
                     Application.DoEvents(); //必要
                     Thread.Sleep(10);
