@@ -923,7 +923,7 @@ SUVORK5CYII=";
                 protected override void OnClick(EventArgs e)
                 {
                     //忽略鼠标右键
-                    if (e is MouseEventArgs me && me.Button != System.Windows.Forms.MouseButtons.Left)
+                    if (e is MouseEventArgs me && me.Button != MouseButtons.Left)
                     {
                         return;
                     }

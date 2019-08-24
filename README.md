@@ -1,7 +1,7 @@
 ﻿# MessageBoxEx
 可携带附加消息的增强型消息框
 
-![image](http://images0.cnblogs.com/blog2015/234704/201507/081502593303892.gif)
+![](images/Expand.gif)
 
 ## 2018-06-09更新至2.0
 **新特性：**
@@ -15,4 +15,4 @@
 - 项目更新至VS2017
 - 配合新特性更新Tester，如图：
 
-![](Screenshot_Tester.png)
+![](images/Screenshot_Tester.png)
