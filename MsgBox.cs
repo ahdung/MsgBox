@@ -456,7 +456,20 @@ namespace AhDung.WinForm
                     return btn;
                 }
 
-                string GetText(int i) => (buttonsText?.Length ?? 0) > i && !string.IsNullOrEmpty(buttonsText[i]) ? buttonsText[i] : null;
+                //除非确实有文字，其他情况一律返回null
+                string GetText(int i)
+                {
+                    if (buttonsText != null && buttonsText.Length > i)
+                    {
+                        var text = buttonsText[i];
+                        if (!string.IsNullOrEmpty(text))
+                        {
+                            return text;
+                        }
+                    }
+
+                    return null;
+                }
             }
 
             static PanelBasic CreateAttachPanel(string attach)
@@ -470,6 +483,16 @@ namespace AhDung.WinForm
                     ScrollBars = ScrollBars.Vertical,
                     Text = attach
                 };
+
+                // Ctrl+A全选
+                txb.KeyDown += (_, e) =>
+                {
+                    if (e.Control && e.KeyCode == Keys.A)
+                    {
+                        txb.SelectAll();
+                    }
+                };
+
                 var panel = new PanelBasic();
                 panel.SuspendLayout();
 
@@ -488,30 +511,26 @@ namespace AhDung.WinForm
             /// <param name="delta">增量（负数为减小高度）</param>
             private void ChangeFormHeight(int delta)
             {
-                var target = Height + delta; //精确的目标高度
+                //先得到精确的目标高度
+                var target = Height + delta;
 
-                if (!_useAnimate) //不使用动画
+                //若要跑动画，只跑总帧数-1帧
+                if (_useAnimate)
                 {
-                    Height = target;
-                    return;
-                }
+                    const int frames = 8;
+                    var per = delta / frames; //每帧平均动
 
-                const int step = 8; //帧数
-                var avg = delta / step; //每帧平均高度
-
-                for (var i = 0; i < step; i++)
-                {
-                    if (i == step - 1) //最后一步直达目标
+                    for (int i = 1; i < frames; i++)
                     {
-                        Height = target;
-                        return;
+                        Height += per;
+
+                        Application.DoEvents();
+                        Thread.Sleep(10);
                     }
-
-                    Height += avg;
-
-                    Application.DoEvents(); //必要
-                    Thread.Sleep(10);
                 }
+
+                //最后直达目标
+                Height = target;
             }
 
             /// <summary>
@@ -522,9 +541,6 @@ namespace AhDung.WinForm
             {
                 PlaySound(soundAlias, IntPtr.Zero, 0x10000 /*SND_ALIAS*/| 0x1 /*SND_ASYNC*/);
             }
-
-            [DllImport("winmm.dll", CharSet = CharSet.Auto)]
-            private static extern bool PlaySound([MarshalAs(UnmanagedType.LPWStr)] string soundName, IntPtr hmod, int soundFlags);
 
             #endregion
 
@@ -984,34 +1000,39 @@ SUVORK5CYII=";
                     }
                     base.Dispose(disposing);
                 }
-
-                #region Win32 API
-                // ReSharper disable MemberCanBePrivate.Local
-                // ReSharper disable FieldCanBeMadeReadOnly.Local
-
-                [DllImport("user32.dll", CharSet = CharSet.Auto)]
-                private static extern IntPtr SendMessage(IntPtr hWnd, int msg, IntPtr wParam, IntPtr lParam);
-
-                [DllImport("user32.dll", CharSet = CharSet.Auto)]
-                private static extern IntPtr SendMessage(IntPtr hWnd, int msg, int wParam, string lParam);
-
-                [StructLayout(LayoutKind.Sequential)]
-                private struct TBBUTTON
-                {
-                    public int iBitmap;
-                    public int idCommand;
-                    public byte fsState;
-                    public byte fsStyle;
-                    public byte bReserved0;
-                    public byte bReserved1;
-                    public IntPtr dwData;
-                    public IntPtr iString;
-                }
-
-                // ReSharper restore FieldCanBeMadeReadOnly.Local
-                // ReSharper restore MemberCanBePrivate.Local
-                #endregion
             }
+
+            #region Win32 API
+
+            // ReSharper disable MemberCanBePrivate.Local
+            // ReSharper disable FieldCanBeMadeReadOnly.Local
+
+            [DllImport("user32.dll", CharSet = CharSet.Auto)]
+            static extern IntPtr SendMessage(IntPtr hWnd, int msg, IntPtr wParam, IntPtr lParam);
+
+            [DllImport("user32.dll", CharSet = CharSet.Auto)]
+            static extern IntPtr SendMessage(IntPtr hWnd, int msg, int wParam, string lParam);
+
+            [DllImport("winmm.dll", CharSet = CharSet.Auto)]
+            static extern bool PlaySound([MarshalAs(UnmanagedType.LPWStr)] string soundName, IntPtr hmod, int soundFlags);
+            
+            [StructLayout(LayoutKind.Sequential)]
+            private struct TBBUTTON
+            {
+                public int iBitmap;
+                public int idCommand;
+                public byte fsState;
+                public byte fsStyle;
+                public byte bReserved0;
+                public byte bReserved1;
+                public IntPtr dwData;
+                public IntPtr iString;
+            }
+
+            // ReSharper restore FieldCanBeMadeReadOnly.Local
+            // ReSharper restore MemberCanBePrivate.Local
+
+            #endregion
 
             #endregion
         }
