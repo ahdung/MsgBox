@@ -689,6 +689,16 @@ namespace AhDung.WinForm
                     //绘制文本
                     TextRenderer.DrawText(g, Text, Font, rect, SystemColors.WindowText, TEXTFLAGS);
 
+                    //vista+ 系统绘制底部边线
+                    if (Environment.OSVersion.Version.Major > 5)
+                    {
+                        using (var pen = new Pen(Color.FromArgb(223, 223, 223)))
+                        {
+                            var y = Height - 1;
+                            g.DrawLine(pen, 0, y, Width, y);
+                        }
+                    }
+
                     base.OnPaint(e);
                 }
 
@@ -1015,7 +1025,7 @@ SUVORK5CYII=";
 
             [DllImport("winmm.dll", CharSet = CharSet.Auto)]
             static extern bool PlaySound([MarshalAs(UnmanagedType.LPWStr)] string soundName, IntPtr hmod, int soundFlags);
-            
+
             [StructLayout(LayoutKind.Sequential)]
             private struct TBBUTTON
             {
